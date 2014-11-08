@@ -1,12 +1,6 @@
-tibow91_repo
-============
-
-Projet Algo
-
  Plugin Git for Eclipse
  =====================
   Pour utiliser Eclipse avec Github, il existe un plugin Egit pour eclipse.
- 
 
 01.  Auparavant, si vous êtes sur windows veuillez télécharger github pour windows ici : https://windows.github.com/
 
