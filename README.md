@@ -16,6 +16,7 @@ Dans workspace, on a 2 projets :
 Plugin Git for Eclipse 
 =====================
 (Pour ceux qui veulent participer au développement du projet)
+--------------------------------------------------------------
 
   Pour utiliser Eclipse avec Github, il existe un plugin Egit pour eclipse.
 
