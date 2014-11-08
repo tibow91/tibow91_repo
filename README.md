@@ -17,9 +17,9 @@ Tutoriel LWJGL
 --------------
 
 ICI : http://ninjacave.com/tutorials
-Basics 1 : initialisation d'une fenêtre
-Basics 2 : Gestion Souris/Clavier (pas nécessaire pour le moment
-Basics 3 : Dessin d'un quadrilatère
+* Basics 1 : initialisation d'une fenêtre
+* Basics 2 : Gestion Souris/Clavier (pas nécessaire pour le moment
+* Basics 3 : Dessin d'un quadrilatère
 
 Plugin Git for Eclipse 
 =====================
