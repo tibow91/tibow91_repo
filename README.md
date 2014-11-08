@@ -3,7 +3,10 @@ tibow91_repo
 
 Projet Algo
 
- Pour utiliser Eclipse avec Github, il existe un plugin Egit pour eclipse.
+ Plugin Git for Eclipse
+ =====================
+  Pour utiliser Eclipse avec Github, il existe un plugin Egit pour eclipse.
+ 
 
 01.  Auparavant, si vous êtes sur windows veuillez télécharger github pour windows ici : https://windows.github.com/
 
@@ -15,6 +18,9 @@ Conseil: Changer de workspace avant d'importer les projets depuis git
 Note: Inutile de chercher à générer les clefs ssh elles sont déjà générées par github pour windows
 Note2: Impossible de synchroniser les jars avec github, ils font donc les télécharger ou me les demander
 
+
+Contenu du workspace et configuration 
+====================================
 
 Dans workspace, on a 2 projets :
 - esgi_consolegraphique, projet basé sur la librairie graphique jFrame.
