@@ -13,6 +13,14 @@ Dans workspace, on a 2 projets :
  * jars slick-util.jar ici http://slick.ninjacave.com/slick-util.jar
  * inclure le fichier slick-util.jar dans le sous dossier jar du projet
 
+Tutoriel LWJGL
+--------------
+
+ICI : http://ninjacave.com/tutorials
+Basics 1 : initialisation d'une fenêtre
+Basics 2 : Gestion Souris/Clavier (pas nécessaire pour le moment
+Basics 3 : Dessin d'un quadrilatère
+
 Plugin Git for Eclipse 
 =====================
 (Pour ceux qui veulent participer au développement du projet)
