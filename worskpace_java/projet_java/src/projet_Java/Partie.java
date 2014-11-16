@@ -1,6 +1,11 @@
 package projet_Java;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+
 import org.lwjgl.LWJGLException;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
@@ -12,12 +17,12 @@ import org.newdawn.slick.util.ResourceLoader;
 
 public class Partie
 {
-	/** The texture that will hold the image details */
-	private Texture texture;
+	private Texture[] textureArray;
 
 	public void start()
 	{
-		initGL(800, 600);
+		initGL(1600, 800);
+
 		init();
 
 		while (true)
@@ -35,7 +40,7 @@ public class Partie
 			}
 		}
 	}
-	
+
 	private void initGL(int width, int height)
 	{
 		try
@@ -43,8 +48,8 @@ public class Partie
 			Display.setDisplayMode(new DisplayMode(width, height));
 			Display.create();
 			Display.setVSyncEnabled(true);
-		}
-		catch (LWJGLException e)
+			Display.setTitle("Java Project ESGI");
+		} catch (LWJGLException e)
 		{
 			e.printStackTrace();
 			System.exit(0);
@@ -69,46 +74,102 @@ public class Partie
 
 	public void init()
 	{
+		String chaine = "";
+		String fichier = "map.txt";
+
+		// lecture du fichier texte
 		try
 		{
-			// load texture from PNG file
-			texture = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/rock.png"));
+			InputStream ips = new FileInputStream(fichier);
+			InputStreamReader ipsr = new InputStreamReader(ips);
+			BufferedReader br = new BufferedReader(ipsr);
+			String ligne;
 
-			System.out.println("Texture loaded: " + texture);
-			System.out.println(">> Image width: " + texture.getImageWidth());
-			System.out.println(">> Image height: " + texture.getImageHeight());
-			System.out.println(">> Texture width: " + texture.getTextureWidth());
-			System.out.println(">> Texture height: " + texture.getTextureHeight());
-			System.out.println(">> Texture ID: " + texture.getTextureID());
-		} catch (IOException e)
+			while ((ligne = br.readLine()) != null)
+			{
+				// System.out.println(ligne);
+				chaine += ligne + "\n";
+			}
+			br.close();
+		} catch (Exception e)
+		{
+			System.out.println(e.toString());
+		}
+
+		textureArray = new Texture[chaine.length()];
+		
+		try
+		{
+			// Parcourt chaine
+			for (int i = 0; i < chaine.length(); i++)
+			{
+				switch (chaine.charAt(i))
+				{
+					case '*' :
+						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/rock.png"));
+						break;
+					case ' ' :
+						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/dust.png"));
+						break;
+					case 'A' :
+						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/door.png"));
+						break;
+					case 'R' :
+						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/cheese.png"));
+						break;
+				}
+			}
+		}
+		catch (IOException e)
 		{
 			e.printStackTrace();
 		}
 	}
 
-	/**
-	 * draw a quad with the image on it
-	 */
 	public void render()
 	{
 		Color.white.bind();
-		texture.bind(); // or GL11.glBind(texture.getTextureID());
 
-		GL11.glBegin(GL11.GL_QUADS);
-		GL11.glTexCoord2f(0, 0);
-		GL11.glVertex2f(100, 100);
-		GL11.glTexCoord2f(1, 0);
-		GL11.glVertex2f(100 + texture.getTextureWidth(), 100);
-		GL11.glTexCoord2f(1, 1);
-		GL11.glVertex2f(100 + texture.getTextureWidth(), 100 + texture.getTextureHeight());
-		GL11.glTexCoord2f(0, 1);
-		GL11.glVertex2f(100, 100 + texture.getTextureHeight());
-		GL11.glEnd();
+		try
+		{
+			int xSpace = 0 - textureArray[0].getImageWidth();
+			int ySpace = 0;
+			
+			for (int i=0; i < textureArray.length; i++)
+			{
+				System.out.println("x = " + xSpace);
+				System.out.println("y = " + ySpace);
+				
+				if(textureArray[i] == null)
+				{
+					ySpace += textureArray[0].getImageHeight();
+					xSpace = 0 - textureArray[0].getImageWidth();
+				}
+				else
+				{
+					xSpace += textureArray[i].getImageWidth();
+					
+					textureArray[i].bind();
+		
+					GL11.glBegin(GL11.GL_QUADS);
+					GL11.glTexCoord2f(0, 0);
+					GL11.glVertex2f(xSpace, ySpace);
+					GL11.glTexCoord2f(1, 0);
+					GL11.glVertex2f(xSpace + textureArray[i].getTextureWidth(), ySpace);
+					GL11.glTexCoord2f(1, 1);
+					GL11.glVertex2f(xSpace + textureArray[i].getTextureWidth(), textureArray[i].getTextureHeight());
+					GL11.glTexCoord2f(0, 1);
+					GL11.glVertex2f(xSpace, textureArray[i].getTextureHeight());
+					GL11.glEnd();
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
 	}
 
-	/**
-	 * Main Class
-	 */
 	public static void main(String[] argv)
 	{
 		Partie partie = new Partie();
