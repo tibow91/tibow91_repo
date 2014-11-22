@@ -17,30 +17,33 @@ import org.newdawn.slick.util.ResourceLoader;
 
 public class Partie
 {
-	private Texture[] textureArray;
-
+	private String lignes[]; // Charge les lignes du fichier map.txt
+	private Texture[][] textureArray; // Tableau de textures à 2 dimensions (lignes/colonnes) 
+	private int nblignes=0,longueur=0; // Délimite le nombre de pixels de la map (lignes/colonnes)
+	
+	// Lance la partie
 	public void start()
 	{
-		initGL(1600, 800);
-
-		init();
+		initGL(1366, 600); // Initialise openGL
+		init("map.txt"); // Initialise la map
 
 		while (true)
 		{
-			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
-			render();
+			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT); // (Ré)Initialisation du buffer graphique
+			render(); // Mise à jour des textures
 
-			Display.update();
-			Display.sync(100);
+			Display.update(); // Mise à jour des graphismes
+			Display.sync(100); // ??
 
-			if (Display.isCloseRequested())
+			if (Display.isCloseRequested()) // Penser à faire un bouton quitter
 			{
 				Display.destroy();
 				System.exit(0);
 			}
 		}
 	}
-
+	
+	// Initialise openGL
 	private void initGL(int width, int height)
 	{
 		try
@@ -72,53 +75,110 @@ public class Partie
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 	}
 
-	public void init()
+	public void init(String filename)
 	{
-		String chaine = "";
-		String fichier = "map.txt";
-
+		String fichier = filename; 
+		int i,j;
 		// lecture du fichier texte
 		try
 		{
-			InputStream ips = new FileInputStream(fichier);
+			// Chargement du fichier dans un buffer
+			InputStream ips = new FileInputStream(fichier); 
 			InputStreamReader ipsr = new InputStreamReader(ips);
 			BufferedReader br = new BufferedReader(ipsr);
-			String ligne;
-
-			while ((ligne = br.readLine()) != null)
-			{
-				// System.out.println(ligne);
-				chaine += ligne + "\n";
-			}
+			
+			// Comptage du nombre de lignes
+			while(br.readLine() != null)
+				nblignes++;			
+			
+			System.out.println("nblignes = " + nblignes);
+			
+			// Déchargement du fichier
 			br.close();
+			ipsr.close();
+			ips.close();
+			
+			// Vérifie que le fichier n'est pas vide
+			if(nblignes == 0)
+			{
+				System.out.println("Fichier " + fichier + " vide.");
+				System.exit(0);
+			}
+			
+			// Rechargement du fichier
+			ips = new FileInputStream(fichier);
+			ipsr = new InputStreamReader(ips);		
+			br = new BufferedReader(ipsr);
+						
+			lignes = new String[nblignes]; // Allocation des lignes
+			
+			// Chargement des lignes du fichier
+			for(i=0;i<nblignes;i++)
+			{
+				lignes[i] = br.readLine(); // lecture d'une ligne
+//				System.out.println("lignes = " + lignes[i]);
+				if(i==0)
+				{
+					longueur = lignes[i].length();
+					// Vérification de la bonne largeur de la map
+					if(longueur > 51)
+					{
+						System.out.println("La largeur de la map est trop grande");
+						System.exit(0);
+					}
+				}
+				else if(longueur != lignes[i].length()) // Vérification que la map est bien rectangulaire
+				{
+					System.out.println("Le fichier " + fichier + " n'est pas un quadrilatère.");
+					System.exit(0);
+				}
+			}
+			System.out.println("Longueur = " + longueur);
+
+			// Fermeture du fichier
+			br.close();	
+			ipsr.close();
+			ips.close();
+			
 		} catch (Exception e)
 		{
 			System.out.println(e.toString());
-		}
+			System.exit(0);
 
-		textureArray = new Texture[chaine.length()];
+		}
 		
+		// Allocation des textures 2D
+		textureArray = new Texture[nblignes][longueur];
+
 		try
 		{
-			// Parcourt chaine
-			for (int i = 0; i < chaine.length(); i++)
+			// Parcourt les lignes du fichier
+			// Chargement des textures selon les caractères du fichier map
+			for ( i = 0; i < nblignes; i++)
 			{
-				switch (chaine.charAt(i))
-				{
-					case '*' :
-						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/rock.png"));
-						break;
-					case ' ' :
-						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/dust.png"));
-						break;
-					case 'A' :
-						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/door.png"));
-						break;
-					case 'R' :
-						textureArray[i] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/cheese.png"));
-						break;
+				for ( j = 0; j < longueur; j++)
+				{				
+					switch (lignes[i].charAt(j))
+					{
+						case '*' :
+							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/rock.png"));
+							break;
+						case ' ' :
+							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/dust.png"));
+							break;
+						case 'A' :
+							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/door.png"));
+							break;
+						case 'R' :
+							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/cheese.png"));
+							break;
+						default:textureArray[i][j]=null;
+							break;
+					}
 				}
 			}
+//			 System.out.println(" = "+ textureArray.length);
+
 		}
 		catch (IOException e)
 		{
@@ -126,42 +186,43 @@ public class Partie
 		}
 	}
 
+	// Définition des quadrilatères associés aux textures du tableau de textures
 	public void render()
 	{
 		Color.white.bind();
 
 		try
 		{
-			int xSpace = 0 - textureArray[0].getImageWidth();
+			int xSpace = 0;
 			int ySpace = 0;
 			
-			for (int i=0; i < textureArray.length; i++)
+			for (int i=0; i < nblignes; i++)
 			{
-				System.out.println("x = " + xSpace);
-				System.out.println("y = " + ySpace);
-				
-				if(textureArray[i] == null)
+				for (int j=0; j < longueur; j++)
 				{
-					ySpace += textureArray[0].getImageHeight();
-					xSpace = 0 - textureArray[0].getImageWidth();
-				}
-				else
-				{
-					xSpace += textureArray[i].getImageWidth();
-					
-					textureArray[i].bind();
-		
+					textureArray[i][j].bind(); // or GL11.glBind(texture.getTextureID());
+	
 					GL11.glBegin(GL11.GL_QUADS);
 					GL11.glTexCoord2f(0, 0);
 					GL11.glVertex2f(xSpace, ySpace);
 					GL11.glTexCoord2f(1, 0);
-					GL11.glVertex2f(xSpace + textureArray[i].getTextureWidth(), ySpace);
+					GL11.glVertex2f(xSpace + textureArray[i][j].getTextureWidth(), ySpace);
 					GL11.glTexCoord2f(1, 1);
-					GL11.glVertex2f(xSpace + textureArray[i].getTextureWidth(), textureArray[i].getTextureHeight());
+					GL11.glVertex2f(xSpace + textureArray[i][j].getTextureWidth(), ySpace + textureArray[i][j].getTextureHeight());
 					GL11.glTexCoord2f(0, 1);
-					GL11.glVertex2f(xSpace, textureArray[i].getTextureHeight());
+					GL11.glVertex2f(xSpace, ySpace + textureArray[i][j].getTextureHeight());
 					GL11.glEnd();
+					
+					// Incrémentation de l'abscisse pour chaque colonne
+					xSpace += textureArray[i][j].getImageWidth(); 
+
 				}
+				
+				// Incrémentation des ordonnées à la fin de chaque ligne
+				ySpace += textureArray[i][0].getImageHeight();
+				// Réinitialisation des abscisses à la fin de chaque ligne
+				xSpace = 0;
+
 			}
 		}
 		catch (Exception e)
