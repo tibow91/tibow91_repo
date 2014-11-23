@@ -1,4 +1,4 @@
-Projet Algo
+﻿Projet Algo
 =====================
 
 Contenu du workspace et configuration 
@@ -20,6 +20,10 @@ ICI : http://ninjacave.com/tutorials
 * Basics 1 : initialisation d'une fenêtre
 * Basics 2 : Gestion Souris/Clavier (pas nécessaire pour le moment
 * Basics 3 : Dessin d'un quadrilatère
+
+Chargement d'images avec LWJGL:
+________________________________
+ICI: http://ninjacave.com/slickutil1
 
 Plugin Git for Eclipse 
 =====================

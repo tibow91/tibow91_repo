@@ -2,6 +2,7 @@ package projet_Java;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,11 +21,14 @@ public class Partie
 	private String lignes[]; // Charge les lignes du fichier map.txt
 	private Texture[][] textureArray; // Tableau de textures à 2 dimensions (lignes/colonnes) 
 	private int nblignes=0,longueur=0; // Délimite le nombre de pixels de la map (lignes/colonnes)
+	private BufferedReader br = null;
+	private FileInputStream ips = null;
+	private InputStreamReader ipsr = null;
 	
 	// Lance la partie
 	public void start()
 	{
-		initGL(1366, 600); // Initialise openGL
+		initGL(1366, 600, "Java Project ESGI"); // Initialise openGL
 		init("map.txt"); // Initialise la map
 
 		while (true)
@@ -44,14 +48,14 @@ public class Partie
 	}
 	
 	// Initialise openGL
-	private void initGL(int width, int height)
+	private void initGL(int width, int height, String windowTitle)
 	{
 		try
 		{
 			Display.setDisplayMode(new DisplayMode(width, height));
 			Display.create();
 			Display.setVSyncEnabled(true);
-			Display.setTitle("Java Project ESGI");
+			Display.setTitle(windowTitle);
 		} catch (LWJGLException e)
 		{
 			e.printStackTrace();
@@ -74,116 +78,189 @@ public class Partie
 		GL11.glOrtho(0, width, height, 0, 1, -1);
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 	}
-
-	public void init(String filename)
+	
+	private BufferedReader openFile(String filename)
 	{
-		String fichier = filename; 
-		int i,j;
-		// lecture du fichier texte
-		try
-		{
-			// Chargement du fichier dans un buffer
-			InputStream ips = new FileInputStream(fichier); 
-			InputStreamReader ipsr = new InputStreamReader(ips);
-			BufferedReader br = new BufferedReader(ipsr);
-			
-			// Comptage du nombre de lignes
-			while(br.readLine() != null)
-				nblignes++;			
-			
-			System.out.println("nblignes = " + nblignes);
-			
-			// Déchargement du fichier
-			br.close();
-			ipsr.close();
-			ips.close();
-			
-			// Vérifie que le fichier n'est pas vide
-			if(nblignes == 0)
-			{
-				System.out.println("Fichier " + fichier + " vide.");
-				System.exit(0);
-			}
-			
-			// Rechargement du fichier
-			ips = new FileInputStream(fichier);
-			ipsr = new InputStreamReader(ips);		
+		// Chargement du fichier dans un buffer
+		try {
+			ips = new FileInputStream(filename);
+			ipsr = new InputStreamReader(ips);
 			br = new BufferedReader(ipsr);
-						
-			lignes = new String[nblignes]; // Allocation des lignes
-			
-			// Chargement des lignes du fichier
-			for(i=0;i<nblignes;i++)
-			{
-				lignes[i] = br.readLine(); // lecture d'une ligne
-//				System.out.println("lignes = " + lignes[i]);
-				if(i==0)
-				{
-					longueur = lignes[i].length();
-					// Vérification de la bonne largeur de la map
-					if(longueur > 51)
-					{
-						System.out.println("La largeur de la map est trop grande");
-						System.exit(0);
-					}
-				}
-				else if(longueur != lignes[i].length()) // Vérification que la map est bien rectangulaire
-				{
-					System.out.println("Le fichier " + fichier + " n'est pas un quadrilatère.");
-					System.exit(0);
-				}
-			}
-			System.out.println("Longueur = " + longueur);
-
-			// Fermeture du fichier
-			br.close();	
-			ipsr.close();
-			ips.close();
-			
-		} catch (Exception e)
-		{
-			System.out.println(e.toString());
+			return br;
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.out.println("Cannot find map file " + filename);
 			System.exit(0);
-
+		} 
+		return null;
+	}
+	
+	private void closeFile(String filename)
+	{
+		try {
+			br.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
 		}
-		
-		// Allocation des textures 2D
-		textureArray = new Texture[nblignes][longueur];
-
-		try
-		{
-			// Parcourt les lignes du fichier
-			// Chargement des textures selon les caractères du fichier map
-			for ( i = 0; i < nblignes; i++)
-			{
-				for ( j = 0; j < longueur; j++)
-				{				
-					switch (lignes[i].charAt(j))
-					{
-						case '*' :
-							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/rock.png"));
-							break;
-						case ' ' :
-							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/dust.png"));
-							break;
-						case 'A' :
-							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/door.png"));
-							break;
-						case 'R' :
-							textureArray[i][j] = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("map/cheese.png"));
-							break;
-						default:textureArray[i][j]=null;
-							break;
-					}
-				}
-			}
-//			 System.out.println(" = "+ textureArray.length);
-
+		try {
+			ipsr.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
 		}
-		catch (IOException e)
-		{
+		try {
+			ips.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
+		}
+	}
+	
+	private String readLine()
+	{
+		String line = null;
+		try {
+			line = br.readLine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return line;	
+	}
+	
+	private int countLines(String filename)
+	{
+		int linenumber=0;
+		br = openFile(filename);	// Chargement du fichier dans un buffer
+
+		// Comptage du nombre de lignes
+		while(readLine() != null )
+			linenumber++;		
+		
+		closeFile(filename); 	// Déchargement du fichier
+
+		return linenumber;
+	}
+	
+	private boolean checkEmptyFileandCountLines(String filename)
+	{
+		nblignes = 0;
+		nblignes = countLines(filename);
+		if(nblignes == 0)
+			return true;
+		return false;
+	}
+	
+	private void checkMapWidth(int width)
+	{
+		if(width > 51)				// Vérification de la bonne largeur de la map
+		{
+			System.out.println("La largeur de la map est trop grande (" + width + ")");
+			System.exit(0);
+		}
+	}
+	
+	private void checkMapFormat(String line, String filename) // Vérification que la map est bien rectangulaire
+	{
+		if(longueur != line.length()) 
+		{
+			System.out.println("Le fichier " + filename + " n'est pas un quadrilatère.");
+			System.exit(0);
+		}
+	}
+	
+	private void loadFileLines(String filename)
+	{
+		if(checkEmptyFileandCountLines(filename))
+		{
+			System.out.println("Fichier " + filename + " vide.");
+			System.exit(0);
+		}
+		
+		br = openFile(filename);
+		lignes = new String[nblignes]; // Allocation des lignes
+		
+		// Chargement des lignes du fichier
+		for(int i=0;i<nblignes;i++)
+		{
+			lignes[i] = readLine(); // lecture d'une ligne
+			if(i==0)
+			{
+				longueur = lignes[i].length();
+				checkMapWidth(longueur);
+			}
+			else checkMapFormat(lignes[i],filename);
+		}
+		closeFile(filename);
+		System.out.println("Longueur = " + longueur);
+	}
+	
+	private void loadTextures()
+	{
+		textureArray = new Texture[nblignes][longueur];		
+		
+		// Parcourt les lignes du fichier
+		// Chargement des textures selon les caractères du fichier map
+		boolean error=false;
+		for ( int i = 0; i < nblignes; i++)
+		{
+			for ( int j = 0; j < longueur; j++)
+			{				
+				switch (lignes[i].charAt(j))
+				{
+					case '*' :
+						textureArray[i][j] = getTexture("PNG","map/rock.png");
+						break;
+					case ' ' :
+						textureArray[i][j] = getTexture("PNG","map/dust.png");
+						break;
+					case 'A' :
+						textureArray[i][j] = getTexture("PNG","map/door.png");
+						break;
+					case 'R' :
+						textureArray[i][j] = getTexture("PNG","map/cheese.png");
+						break;
+					default:
+						System.out.println("Character '" + lignes[i].charAt(j) +
+												"' has no associated texture at i= " + i + " and j= " + j);
+						error = true;
+						break;
+				}
+			}
+		}
+		if(error)
+			System.exit(0);
+	}
+	
+	public void init(String mapfilename)
+	{
+		if(checkEmptyFileandCountLines(mapfilename))
+		{
+			System.out.println("Fichier " + mapfilename + " vide.");
+			System.exit(0);
+		}
+
+		loadFileLines(mapfilename);
+		
+		// Allocation des textures 2D
+		loadTextures(); 
+	}
+	
+	private Texture getTexture(String filetype, String filename)
+	{
+		Texture texture = null;
+		try{
+			texture = TextureLoader.getTexture(filetype, ResourceLoader.getResourceAsStream(filename));			
+		}catch (Exception e){
+			System.out.println(e.toString());
+			System.exit(0);
+		}
+		return texture;
 	}
 
 	// Définition des quadrilatères associés aux textures du tableau de textures
@@ -193,8 +270,8 @@ public class Partie
 
 		try
 		{
-			int xSpace = 0;
-			int ySpace = 0;
+			int xSpace = 0; // Abscisses
+			int ySpace = 0; // Ordonnées
 			
 			for (int i=0; i < nblignes; i++)
 			{
