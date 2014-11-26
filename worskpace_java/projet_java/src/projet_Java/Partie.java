@@ -21,6 +21,16 @@ import org.newdawn.slick.util.ResourceLoader;
 
 import projet_Java.Node;
 
+class Coordinates{
+	public int x=0;
+	public int y=0;
+	public Coordinates(int x_, int y_)
+	{
+		x= x_;
+		y= y_;
+	}
+}
+
 public class Partie {
 	private String lignes[]; // Charge les lignes du fichier map.txt
 	private int nblignes = 0, longueur = 0; // Délimite le nombre de pixels de
@@ -33,8 +43,11 @@ public class Partie {
 
 	private Texture defaultTexture = null; // Texture par défaut (texture de sol
 											// par exemple)
-	private Node mapNodes[][]; // Noeuds de la carte
+	private Texture mouseTexture = null;
+	private Node<Integer> mapNodes[][]; // Noeuds de la carte
 	private int departureXY[][] = null; // Point(s) d'apparition
+	private FifoStack<Coordinates> StartingMousesToAdd = new FifoStack<Coordinates>(); 
+	private FifoStack<Coordinates> ActiveMouses = new FifoStack<Coordinates>(); 
 
 	public void start() // Lance la partie
 	{
@@ -101,7 +114,7 @@ public class Partie {
 		setMapNodesAndSetTextures();
 		getDeparturePoints(); // Récupération des points d'apparition pour que
 								// les sabelettes puissent rentrer
-
+		setMouseTexture("PNG", "map/mouse.png");
 	}
 
 	/****************************************************************/
@@ -300,7 +313,7 @@ public class Partie {
 		mapNodes = new Node[nblignes][longueur];
 		for (int i = 0; i < nblignes; i++)
 			for (int j = 0; j < longueur; j++)
-				mapNodes[i][j] = new Node();
+				mapNodes[i][j] = new Node<Integer>();
 	}
 
 	// Paramètres les noeuds de la map textures comprises
@@ -426,6 +439,11 @@ public class Partie {
 					nb++;
 		return nb;
 	}
+	
+	// Paramètre la texture représentant la souris
+	public void setMouseTexture(String filetype, String filename) {
+		this.mouseTexture = getTexture(filetype, filename);
+	}
 
 	// Détection des périphériques d'entrée (clavier/souris)
 	public void pollInput() {
@@ -489,6 +507,9 @@ public class Partie {
 					displayTextureQuad(getDefaultTexture(), xSpace, ySpace);
 					displayTextureQuad(mapNodes[i][j].getTexture(), xSpace,
 							ySpace);
+					if(mapNodes[i][j].is_Occupied())
+						displayTextureQuad(getMouseTexture(), xSpace,
+								ySpace);
 
 					// Incrémentation de l'abscisse pour chaque colonne
 					xSpace += getDefaultTexture().getImageWidth();
@@ -500,7 +521,7 @@ public class Partie {
 				xSpace = 0;
 			}
 
-			displaySabelettes();
+			SearchAndSetNewMouses();
 
 			for (int i = 0; i < 1; i++) {
 				for (int j = 0; j < longueur; j++) {
@@ -536,6 +557,15 @@ public class Partie {
 		GL11.glVertex2f(x, y + texture.getTextureHeight());
 		GL11.glEnd();
 	}
+	
+	public Texture getMouseTexture() {
+		if(mouseTexture == null)
+		{
+			System.out.println("Mouse Texture has not been set");
+			System.exit(0);
+		}
+		return mouseTexture;
+	}
 
 	// Obtention de la texture par défaut
 	private Texture getDefaultTexture() {
@@ -547,38 +577,71 @@ public class Partie {
 	}
 
 	// Affichage des sabelettes aux positions où ils se trouvent
-	private void displaySabelettes() {
+	private void SearchAndSetNewMouses() {
 		if (departureXY == null) {
 			System.out.println("Tableau de points d'apparition non assigné");
 			System.exit(0);
 		}
 		int x, y;
+		Coordinates coord = new Coordinates(0,0);
 		for (int i = 0; i < departureXY.length; i++) {
-			x = departureXY[i][0];
-			y = departureXY[i][1];
-			displayStartingSabelettes(mapNodes[x][y], "PNG", "map/mouse.png");
+			coord.x = x = departureXY[i][0];
+			coord.y = y = departureXY[i][1];
+			TestAndAddStartingMouses(coord,mapNodes[x][y], "PNG", "map/mouse.png");
 		}
+		
+		if(!StartingMousesToAdd.isEmpty())
+		{
+			while(!StartingMousesToAdd.isEmpty()) {
+				coord = StartingMousesToAdd.pop();
+				mapNodes[coord.x][coord.y].setAsOccupied();
+				System.out.println("mapNodes[" + coord.x + "][" + coord.y + "] is now occupied");
+				ActiveMouses.push(new Coordinates(coord.x, coord.y));
+			}
+		}
+				
 	}
 
 	// Affichage des sabelettes au point d'apparition
-	private void displayStartingSabelettes(Node entrynode, String filetype,
+	private void TestAndAddStartingMouses(Coordinates entrycoord, Node<?> entrynode, String filetype,
 			String filename) {
-		TestNodeAndSetTexture(entrynode.getRightNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getLeftNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getUpNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getDownNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getUpRightNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getDownRightNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getUpLeftNode(), filetype, filename);
-		TestNodeAndSetTexture(entrynode.getDownLeftNode(), filetype, filename);
+		if(TestNodeAndAddMouses(entrynode.getRightNode(), filetype, filename))
+			addStartingMouse(entrycoord.x, entrycoord.y+1);
+		if(TestNodeAndAddMouses(entrynode.getLeftNode(), filetype, filename))
+			addStartingMouse(entrycoord.x, entrycoord.y-1);
+		if(TestNodeAndAddMouses(entrynode.getUpNode(), filetype, filename))
+			addStartingMouse(entrycoord.x-1, entrycoord.y);
+		if(TestNodeAndAddMouses(entrynode.getDownNode(), filetype, filename))
+			addStartingMouse(entrycoord.x+1, entrycoord.y);
+		if(TestNodeAndAddMouses(entrynode.getUpRightNode(), filetype, filename))
+			addStartingMouse(entrycoord.x-1, entrycoord.y+1);
+		if(TestNodeAndAddMouses(entrynode.getDownRightNode(), filetype, filename))
+			addStartingMouse(entrycoord.x+1, entrycoord.y+1);
+		if(TestNodeAndAddMouses(entrynode.getUpLeftNode(), filetype, filename))
+			addStartingMouse(entrycoord.x-1, entrycoord.y-1);
+		if(TestNodeAndAddMouses(entrynode.getDownLeftNode(), filetype, filename))
+			addStartingMouse(entrycoord.x+1, entrycoord.y-1);
 	}
-
+	
 	// Vérifie l'existence du noeud et paramètre sa texture se lo
-	private void TestNodeAndSetTexture(Node node, String filetype,
+	private boolean TestNodeAndAddMouses(Node<?> node, String filetype,
 			String filename) {
 		if (node != null) {
 			if (node.is_Walkable())
-				node.setTexture(getMapTexture(filetype, filename));
+				return true;
+//				node.setTexture(getMapTexture(filetype, filename));
+		}
+		return false;
+	}
+	
+	private void addStartingMouse(int x_, int y_)
+	{
+		if(StartingMousesToAdd != null)
+			StartingMousesToAdd.push(new Coordinates(x_,y_));
+		else
+		{
+			System.out.println("StartingMousesToAdd has not been initialized");
+			System.exit(0);
 		}
 	}
 
@@ -605,4 +668,6 @@ public class Partie {
 		Partie partie = new Partie();
 		partie.start();
 	}
+
+
 }

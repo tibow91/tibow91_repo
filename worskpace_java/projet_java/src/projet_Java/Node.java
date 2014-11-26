@@ -2,23 +2,23 @@ package projet_Java;
 
 import org.newdawn.slick.opengl.Texture;
 
-public class Node {
+public class Node<V> {
 
 	private boolean wall = false;
 	private boolean grass = false;
 	private boolean arrival = false;
 	private boolean departure = false;
 	private boolean occupied = false;
-	private Node upNode = null;
-	private Node downNode = null;
-	private Node leftNode = null;
-	private Node rightNode = null;
-	private Node upLeftNode = null;
-	private Node upRightNode = null;
-	private Node downLeftNode = null;
-	private Node downRightNode = null;
+	private Node<V> upNode = null;
+	private Node<V> downNode = null;
+	private Node<V> leftNode = null;
+	private Node<V> rightNode = null;
+	private Node<V> upLeftNode = null;
+	private Node<V> upRightNode = null;
+	private Node<V> downLeftNode = null;
+	private Node<V> downRightNode = null;
 	private Texture texture = null;
-	private int value = 0;
+	private V value;
 
 	public boolean is_Wall() {
 		return wall;
@@ -47,12 +47,19 @@ public class Node {
 	public boolean is_Occupied() {
 		return occupied;
 	}
-
-	public Node getUpNode() {
+	
+	public void setAsOccupied(){
+		
+		if(!is_Occupied())  
+			occupied = true;
+		else
+			System.out.println("This Node is already occupied");
+	}
+	public Node<V> getUpNode() {
 		return upNode;
 	}
 
-	public void setUpNode(Node upNode) {
+	public void setUpNode(Node<V> upNode) {
 		if (upNode == null)
 			return;
 		this.upNode = upNode;
@@ -60,11 +67,11 @@ public class Node {
 			upNode.setDownNode(this);
 	}
 
-	public Node getDownNode() {
+	public Node<V> getDownNode() {
 		return downNode;
 	}
 
-	public void setDownNode(Node downNode) {
+	public void setDownNode(Node<V> downNode) {
 		if (downNode == null)
 			return;
 		this.downNode = downNode;
@@ -72,11 +79,11 @@ public class Node {
 			downNode.setUpNode(downNode);
 	}
 
-	public Node getLeftNode() {
+	public Node<V> getLeftNode() {
 		return leftNode;
 	}
 
-	public void setLeftNode(Node leftNode) {
+	public void setLeftNode(Node<V> leftNode) {
 		if (leftNode == null)
 			return;
 		this.leftNode = leftNode;
@@ -84,11 +91,11 @@ public class Node {
 			leftNode.setRightNode(this);
 	}
 
-	public Node getRightNode() {
+	public Node<V> getRightNode() {
 		return rightNode;
 	}
 
-	public void setRightNode(Node rightNode) {
+	public void setRightNode(Node<V> rightNode) {
 		if (rightNode == null)
 			return;
 		this.rightNode = rightNode;
@@ -96,11 +103,11 @@ public class Node {
 			rightNode.setLeftNode(this);
 	}
 
-	public Node getUpLeftNode() {
+	public Node<V> getUpLeftNode() {
 		return upLeftNode;
 	}
 
-	public void setUpLeftNode(Node upLeftNode) {
+	public void setUpLeftNode(Node<V> upLeftNode) {
 		if (upLeftNode == null)
 			return;
 		this.upLeftNode = upLeftNode;
@@ -108,11 +115,11 @@ public class Node {
 			upLeftNode.setDownRightNode(this);
 	}
 
-	public Node getUpRightNode() {
+	public Node<V> getUpRightNode() {
 		return upRightNode;
 	}
 
-	public void setUpRightNode(Node upRightNode) {
+	public void setUpRightNode(Node<V> upRightNode) {
 		if (upRightNode == null)
 			return;
 		this.upRightNode = upRightNode;
@@ -120,11 +127,11 @@ public class Node {
 			upRightNode.setDownLeftNode(this);
 	}
 
-	public Node getDownLeftNode() {
+	public Node<V> getDownLeftNode() {
 		return downLeftNode;
 	}
 
-	public void setDownLeftNode(Node downLeftNode) {
+	public void setDownLeftNode(Node<V> downLeftNode) {
 		if (downLeftNode == null)
 			return;
 		this.downLeftNode = downLeftNode;
@@ -132,11 +139,11 @@ public class Node {
 			downLeftNode.setUpRightNode(this);
 	}
 
-	public Node getDownRightNode() {
+	public Node<V> getDownRightNode() {
 		return downRightNode;
 	}
 
-	public void setDownRightNode(Node downRightNode) {
+	public void setDownRightNode(Node<V> downRightNode) {
 		if (downRightNode == null)
 			return;
 		this.downRightNode = downRightNode;
@@ -171,11 +178,11 @@ public class Node {
 		return result;
 	}
 
-	public int getValue() {
+	public V getValue() {
 		return value;
 	}
 
-	public void setValue(int value) {
+	public void setValue(V value) {
 		this.value = value;
 	}
 
