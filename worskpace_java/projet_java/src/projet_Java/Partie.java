@@ -31,6 +31,15 @@ class Coordinates{
 	}
 }
 
+class Deplacement{
+	public Coordinates coord = null;
+	public int time = 0;
+	public Deplacement (Coordinates xy, int duration){
+		coord = new Coordinates(xy.x, xy.y);
+		time = duration;
+	}
+}
+
 public class Partie {
 	private String lignes[]; // Charge les lignes du fichier map.txt
 	private int nblignes = 0, longueur = 0; // Délimite le nombre de pixels de
@@ -48,6 +57,9 @@ public class Partie {
 	private int departureXY[][] = null; // Point(s) d'apparition
 	private FifoStack<Coordinates> StartingMousesToAdd = new FifoStack<Coordinates>(); 
 	private FifoStack<Coordinates> ActiveMouses = new FifoStack<Coordinates>(); 
+	long startTime = System.currentTimeMillis();
+	Coordinates mouseTest = null;
+
 
 	public void start() // Lance la partie
 	{
@@ -345,6 +357,7 @@ public class Partie {
 					mapNodes[i][j].setTexture(getMapTexture("PNG",
 							"map/cheese.png"));
 					mapNodes[i][j].setValue(100);
+					mapNodes[i][j].setAsArrival();
 					break;
 				case 'G': // Point d'arrivée des personnages
 					mapNodes[i][j].setTexture(getMapTexture("PNG",
@@ -462,39 +475,94 @@ public class Partie {
 		while (Keyboard.next()) {
 			if (Keyboard.getEventKeyState()) {
 				if (Keyboard.getEventKey() == Keyboard.KEY_DOWN) {
+					if(moveDown(mapNodes[mouseTest.x][mouseTest.y]) == 1)	
+						mouseTest.x ++;
 				}
 				if (Keyboard.getEventKey() == Keyboard.KEY_UP) {
-					System.out.println("A Key Pressed");
+					if(moveUp(mapNodes[mouseTest.x][mouseTest.y])== 1)
+						mouseTest.x --;
 				}
 				if (Keyboard.getEventKey() == Keyboard.KEY_LEFT) {
-					System.out.println("A Key Pressed");
+					if(moveLeft(mapNodes[mouseTest.x][mouseTest.y])== 1)
+						mouseTest.y --;
 				}
 				if (Keyboard.getEventKey() == Keyboard.KEY_RIGHT) {
-					System.out.println("A Key Pressed");
+					if(moveRight(mapNodes[mouseTest.x][mouseTest.y])== 1)
+						mouseTest.y ++;
 				}
 
 			} else {
 				if (Keyboard.getEventKey() == Keyboard.KEY_DOWN) {
-					System.out.println("A Key Released");
 				}
 				if (Keyboard.getEventKey() == Keyboard.KEY_UP) {
-					System.out.println("A Key Released");
 				}
 				if (Keyboard.getEventKey() == Keyboard.KEY_LEFT) {
-					System.out.println("A Key Released");
 				}
 				if (Keyboard.getEventKey() == Keyboard.KEY_RIGHT) {
-					System.out.println("A Key Released");
 				}
 			}
 		}
 	}
+	
+	private int move(Node<?> startNode, Node<?> endNode){
+		if(!startNode.is_Occupied())
+			System.out.println("the start Node is not occupied");
+		else if(endNode.is_Occupied())
+			System.out.println("the end Node is occupied");
+		else if(endNode.is_arrival())
+		{
+			startNode.setAsNotOccupied();
+			// Enlever la souris de la liste des souris actives
+			// Décrémenter le nombre de souris
+			return 2;
+		}
+		else if(!endNode.is_Walkable())
+			System.out.println("the end node is not walkable for a mouse");
+		else
+		{
+			endNode.setAsOccupied();
+			startNode.setAsNotOccupied();
+			return 1;
+		}
+		return 0;
+	}
+	
+	private int moveUp(Node<?> node){
+		return move(node,node.getUpNode());
+	}
+	
+	private int moveDown(Node<?> node){
+		return move(node,node.getDownNode());
+	}
+	private int moveLeft(Node<?> node){
+		return move(node,node.getLeftNode());
+	}
+	private int moveRight(Node<?> node){
+		return move(node,node.getRightNode());
+	}
+	
+	private int moveUpRight(Node<?> node){
+		return move(node,node.getUpRightNode());
+	}
+	
+	private int moveDownRight(Node<?> node){
+		return move(node,node.getDownRightNode());
+	}
+	private int moveUpLeft(Node<?> node){
+		return move(node,node.getUpLeftNode());
+	}
+	private int moveDownLeft(Node<?> node){
+		return move(node,node.getDownLeftNode());
+	}
+	
+	
 
 	/****************************************************************/
 	/****************** AFFICHAGE GRAPHIQUE *************************/
 	// Mise à jour graphique de la carte
 	public void render() {
 		Color.white.bind();
+		long estimatedTime = System.currentTimeMillis() - startTime;
 
 		try {
 			int xSpace = 0; // Abscisses
@@ -520,8 +588,14 @@ public class Partie {
 				// Réinitialisation des abscisses à la fin de chaque ligne
 				xSpace = 0;
 			}
-
-			SearchAndSetNewMouses();
+			
+			// ... do something ...
+			if(estimatedTime > 2000)
+			{
+				UpdateActiveMouses();
+				SearchAndSetNewMouses();
+				startTime = System.currentTimeMillis();
+			}
 
 			for (int i = 0; i < 1; i++) {
 				for (int j = 0; j < longueur; j++) {
@@ -575,7 +649,32 @@ public class Partie {
 		}
 		return defaultTexture;
 	}
+	
+	// met à jour la position des souris
+	private void UpdateActiveMouses() {
+//		FifoStack<Deplacement> UpdatedMouse = new FifoStack<Deplacement>();
+//		while(!ActiveMouses.isEmpty())
+//		{
+//			algorithm(ActiveMouses.pop(),UpdatedMouse);
+//		}
+//		
+//		while(!UpdatedMouse.isEmpty())
+//		{
+//			ActiveMouses.push(UpdatedMouse.pop());
+//		}
+	}
+	
 
+	private void algorithm( Coordinates coord, FifoStack<Deplacement> pil){
+		// Etablir la nouvelle position vers laquelle déplacer la souris
+		// Tenter un déplacement de la souris avec move
+		// Si le déplacement a réussi ajouter les nouvelles coordonées à pil
+		// Sinon si la souris a atteint le point d'arrivée ne rien faire
+		// sinon si la souris ne peut pas se déplacer réajouter l'ancienne position à la pile pil
+		
+		// 
+	}
+	
 	// Affichage des sabelettes aux positions où ils se trouvent
 	private void SearchAndSetNewMouses() {
 		if (departureXY == null) {
@@ -587,7 +686,7 @@ public class Partie {
 		for (int i = 0; i < departureXY.length; i++) {
 			coord.x = x = departureXY[i][0];
 			coord.y = y = departureXY[i][1];
-			TestAndAddStartingMouses(coord,mapNodes[x][y], "PNG", "map/mouse.png");
+			TestAndAddStartingMouses(coord,mapNodes[x][y]);
 		}
 		
 		if(!StartingMousesToAdd.isEmpty())
@@ -595,37 +694,38 @@ public class Partie {
 			while(!StartingMousesToAdd.isEmpty()) {
 				coord = StartingMousesToAdd.pop();
 				mapNodes[coord.x][coord.y].setAsOccupied();
-				System.out.println("mapNodes[" + coord.x + "][" + coord.y + "] is now occupied");
+//				System.out.println("mapNodes[" + coord.x + "][" + coord.y + "] is now occupied");
 				ActiveMouses.push(new Coordinates(coord.x, coord.y));
 			}
+			if(mouseTest == null)
+				if(!ActiveMouses.isEmpty())
+					mouseTest = new Coordinates(ActiveMouses.peek().x, ActiveMouses.peek().y);
 		}
 				
 	}
 
 	// Affichage des sabelettes au point d'apparition
-	private void TestAndAddStartingMouses(Coordinates entrycoord, Node<?> entrynode, String filetype,
-			String filename) {
-		if(TestNodeAndAddMouses(entrynode.getRightNode(), filetype, filename))
-			addStartingMouse(entrycoord.x, entrycoord.y+1);
-		if(TestNodeAndAddMouses(entrynode.getLeftNode(), filetype, filename))
+	private void TestAndAddStartingMouses(Coordinates entrycoord, Node<?> entrynode) {
+		if(TestWalkableNode(entrynode.getLeftNode()))
 			addStartingMouse(entrycoord.x, entrycoord.y-1);
-		if(TestNodeAndAddMouses(entrynode.getUpNode(), filetype, filename))
+		if(TestWalkableNode(entrynode.getRightNode()))
+			addStartingMouse(entrycoord.x, entrycoord.y+1);
+		if(TestWalkableNode(entrynode.getUpNode()))
 			addStartingMouse(entrycoord.x-1, entrycoord.y);
-		if(TestNodeAndAddMouses(entrynode.getDownNode(), filetype, filename))
+		if(TestWalkableNode(entrynode.getDownNode()))
 			addStartingMouse(entrycoord.x+1, entrycoord.y);
-		if(TestNodeAndAddMouses(entrynode.getUpRightNode(), filetype, filename))
+		if(TestWalkableNode(entrynode.getUpRightNode()))
 			addStartingMouse(entrycoord.x-1, entrycoord.y+1);
-		if(TestNodeAndAddMouses(entrynode.getDownRightNode(), filetype, filename))
+		if(TestWalkableNode(entrynode.getDownRightNode()))
 			addStartingMouse(entrycoord.x+1, entrycoord.y+1);
-		if(TestNodeAndAddMouses(entrynode.getUpLeftNode(), filetype, filename))
+		if(TestWalkableNode(entrynode.getUpLeftNode()))
 			addStartingMouse(entrycoord.x-1, entrycoord.y-1);
-		if(TestNodeAndAddMouses(entrynode.getDownLeftNode(), filetype, filename))
+		if(TestWalkableNode(entrynode.getDownLeftNode()))
 			addStartingMouse(entrycoord.x+1, entrycoord.y-1);
 	}
 	
 	// Vérifie l'existence du noeud et paramètre sa texture se lo
-	private boolean TestNodeAndAddMouses(Node<?> node, String filetype,
-			String filename) {
+	private boolean TestWalkableNode(Node<?> node) {
 		if (node != null) {
 			if (node.is_Walkable())
 				return true;

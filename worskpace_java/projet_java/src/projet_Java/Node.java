@@ -35,7 +35,11 @@ public class Node<V> {
 	public boolean is_arrival() {
 		return arrival;
 	}
-
+	
+	public void setAsArrival()
+	{
+		this.arrival = true;
+	}
 	public boolean is_departure() {
 		return departure;
 	}
@@ -55,6 +59,15 @@ public class Node<V> {
 		else
 			System.out.println("This Node is already occupied");
 	}
+	
+	public void setAsNotOccupied(){
+		
+		if(is_Occupied())  
+			occupied = false;
+		else
+			System.out.println("This Node was not occupied");
+	}
+
 	public Node<V> getUpNode() {
 		return upNode;
 	}
