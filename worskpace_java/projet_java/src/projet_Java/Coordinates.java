@@ -1,5 +1,6 @@
 package projet_Java;
 
+/** Classe pouvant contenir des coordonnées sur 2 dimensions **/
 public class Coordinates{
 	public int x=0;
 	public int y=0;

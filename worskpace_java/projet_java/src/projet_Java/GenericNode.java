@@ -6,17 +6,30 @@ import org.newdawn.slick.opengl.Texture;
 
 import algo.graph.interfaces.IEdge;
 
-public class GenericNode implements AlgoDijkstraNode<String, Object>
+/** GenericNode est une classe implémentant IDijkstraNode, on peut donc 
+ * lui appliquer l'algorithme de Dijkstra. Cependant on l'utilisera aussi pour 
+ * représenter chaque parcelle du jeu, où chaque souris pourra ou non occuper un GenericNode **/
+public class GenericNode implements IDijkstraNode<String, Object>
 {
-	private String key;
-	private Object objet;
-	private ArrayList<IEdge> list;
-	private boolean wall = false;
-	private boolean grass = false;
-	private boolean arrival = false;
-	private boolean departure = false;
-	private boolean occupied = false;
-	private GenericNode upNode = null;
+	/** Variables utiles pour Dijkstra **/
+	private ArrayList<IEdge> list; // Liste des Edges de ce noeud
+	private int minDistance = Integer.MAX_VALUE; // Initialisé à la valeur Max par défaut
+	private IDijkstraNode<String,Object> previous = null; // Noeud précédent ce noeud dans le chemin définit
+	
+	/** Variables utiles pour la simulation **/
+	private String key; // Contient les coordonnées du noeud en chaine de caractère 
+	private Object objet; // Pas utilisé
+	private Coordinates XY; // Contient les coordonnées dans une classe spécifique	
+	private Texture texture = null; // Texture du noeud par défault
+
+	private boolean wall = false; // Mur
+	private boolean grass = false; // Zone d'herbe
+	private boolean arrival = false; // Point d'arrivée
+	private boolean departure = false; // Point de départ
+	private boolean occupied = false; // Information sur la contenance d'une souris
+
+	// Noeuds contigus à ce noeud
+	private GenericNode upNode = null; 
 	private GenericNode downNode = null;
 	private GenericNode leftNode = null;
 	private GenericNode rightNode = null;
@@ -24,13 +37,8 @@ public class GenericNode implements AlgoDijkstraNode<String, Object>
 	private GenericNode upRightNode = null;
 	private GenericNode downLeftNode = null;
 	private GenericNode downRightNode = null;
-	private Texture texture = null;
-	private String name = "";
-	private int valueNode = 0;
-	private int minDistance = Integer.MAX_VALUE;
-	private AlgoDijkstraNode<String,Object> previous = null;
-	private Coordinates XY; 
 	
+	/** Variables utiles pour identifier le sens lors du déplacement d'une souris **/
 	private boolean fromLeft = false;
 	private boolean fromRight = false;
 	private boolean fromUp = false;
@@ -271,25 +279,6 @@ public class GenericNode implements AlgoDijkstraNode<String, Object>
 		return result;
 	}
 
-	public int getValueNode()
-	{
-		return valueNode;
-	}
-
-	public void setValueNode(int value)
-	{
-		this.valueNode = value;
-	}
-	
-	public String getName()
-	{
-		return name;
-	}
-
-	public void setName(String name)
-	{
-		this.name = name;
-	}
 	
 	public boolean hasDownLeftNode()
 	{
@@ -349,7 +338,11 @@ public class GenericNode implements AlgoDijkstraNode<String, Object>
 	}
 
 	@Override
-	public int compareTo(AlgoDijkstraNode<String,Object> o) {
+	/* Si ce noeud est inférieur à l'autre : retourne -1
+	 * Si ce noeud est égal à l'autre : retourne 0
+	 * Si ce noeud est supérieur à l'autre : retourne 1 
+	 * Le critère de comparaison est la distance avec le noeud de départ */
+	public int compareTo(IDijkstraNode<String,Object> o) {
 		// TODO Auto-generated method stub
 	  	if(o == null)
     	{
@@ -383,13 +376,13 @@ public class GenericNode implements AlgoDijkstraNode<String, Object>
 	}
 
 	@Override
-	public AlgoDijkstraNode<String,Object> getPrevious() {
+	public IDijkstraNode<String,Object> getPrevious() {
 		// TODO Auto-generated method stub
 		return previous;
 	}
 
 	@Override
-	public void setPrevious(AlgoDijkstraNode<String,Object> prev) {
+	public void setPrevious(IDijkstraNode<String,Object> prev) {
 		// TODO Auto-generated method stub
 		this.previous =  prev;
 	}

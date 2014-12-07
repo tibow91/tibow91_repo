@@ -1,5 +1,6 @@
 package projet_Java;
 
+/** Objet comparateur de classes comparables (héritant de IComparable) **/
 public class AlgoComparator<T extends IComparable<T>> {
 	
 	public int compare(T o1, T o2)
@@ -8,8 +9,6 @@ public class AlgoComparator<T extends IComparable<T>> {
 			System.out.println("One or both object to compare is null");
 			System.exit(0);
 		}
-//		if(o1.equals(o2)) return 0;
-//		else return o1.compareTo(o2);
 		return o1.compareTo(o2);
 			
 	}

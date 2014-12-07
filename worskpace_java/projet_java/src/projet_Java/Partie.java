@@ -32,23 +32,26 @@ public class Partie
 	private FileInputStream ips = null;
 	private InputStreamReader ipsr = null;
 
-	private Texture defaultTexture = null; // Texture par défaut (texture de sol
-											// par exemple)
-	private Texture mouseTexture = null; 
+
 	private GenericNode mapNodes[][]; // Noeuds de la carte
 	private int departureXY[][] = null; // Point(s) d'apparition
-
-	private int nbActiveMouses = 0; // Nombre de souris en déplacement
 	private static FifoStack<LapMouse> ActiveMouses = new FifoStack<LapMouse>(); 
+	private ArrayList<ArrivalPoint> arrivalArray = new ArrayList<ArrivalPoint>();
+	private FifoStack<Integer> doorMoves = new FifoStack<Integer>();
+
+	private boolean startGame=true; // Indique si la partie est lancée
 	private long lapTime = 350;
 	long startTime = System.currentTimeMillis();
+	private int nbActiveMouses = 0; // Nombre de souris en déplacement
 	private int nbMove = 0;
 	private int nbLap = 0;
 	private int arrivedMouses = 0;
-	private ArrayList<ArrivalPoint> arrivalArray = new ArrayList<ArrivalPoint>();
-	private FifoStack<Integer> doorMoves = new FifoStack<Integer>();
 	private int MousesToGo = 0;
 	
+	/** Textures par défault **/
+	private Texture defaultTexture = null; // Texture par défault de chaque parcelle de terrain
+	private Texture mouseTexture = null; // Texture d'une souris par défault	
+	/* Textures de souris selon le mouvement qu'elles effectuent */
 	private Texture fromLeftMouseTexture = null;
 	private Texture fromRightMouseTexture = null;
 	private Texture fromUpMouseTexture = null;
@@ -69,7 +72,7 @@ public class Partie
 													// buffer graphique
 			pollInput();
 			render(); // Mise à jour des textures
-
+			UpdateMouses(); // Mise à jour des souris
 			Display.update(); // Mise à jour des graphismes
 			Display.sync(100); // ??
 
@@ -370,7 +373,6 @@ public class Partie
 			{
 				String key = "" + i + "-" + j;
 				mapNodes[i][j] = new GenericNode(key,new Coordinates(i,j));
-				mapNodes[i][j].setName(key);
 			}
 		}
 	}
@@ -439,26 +441,21 @@ public class Partie
 				{
 					case '*': // MUR
 						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/rock.png"));
-						mapNodes[i][j].setValueNode(999);
 						mapNodes[i][j].setAsWall();
 						break;
 					case ' ': // Zone normale de déplacement
 						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/dust.png"));
-						mapNodes[i][j].setValueNode(100);
 						break;
 					case 'D': // Point d'apparition des personnages
 						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/door.png"));
-						mapNodes[i][j].setValueNode(100);
 						mapNodes[i][j].setAsDeparture();
 						break;
 					case 'A': // Point d'arrivée des personnages
 						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/cheese.png"));
-						mapNodes[i][j].setValueNode(100);
 						mapNodes[i][j].setAsArrival();
 						break;
 					case 'G': // Point d'arrivée des personnages
 						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/grass.png"));
-						mapNodes[i][j].setValueNode(200);
 						mapNodes[i][j].setAsGrass();
 						break;
 					default:
@@ -729,7 +726,6 @@ public class Partie
 	public void render()
 	{
 		Color.white.bind();
-		long estimatedTime = System.currentTimeMillis() - startTime;
 		try
 		{
 			int xSpace = 0; // Abscisses
@@ -774,33 +770,6 @@ public class Partie
 				xSpace = 0;
 			}
 			
-			if(estimatedTime > getLapTime())
-			{
-				// Incrémenter le nombre de tour
-				nbLap++;
-				
-				// traiter toutes les souris de ActiveMouses
-				if(nbActiveMouses > 0){
-					moveActiveMouses();
-				}
-				if(!arrivalArray.isEmpty())
-					SearchAndSetNewMouses();
-				
-				// Fin de la Partie si la liste arrivalArray est vide et s'il n'y a plus d'activeMouses (souris en déplacement)
-				if(arrivalArray.isEmpty() && nbActiveMouses<=0 ){
-					System.out.println("Fin de la partie");
-					System.out.println("Nombre de deplacements = " + nbMove);
-					System.out.println("Nombre de tours = " + nbLap);
-					System.out.println("Nombre de souris arrivées = " + arrivedMouses);
-					System.out.println("Nombre de souris devant arriver = " + MousesToGo);
-					System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);
-
-					
-				}
-				
-				startTime = System.currentTimeMillis();
-			}
-
 			for (int i = 0; i < 1; i++)
 			{
 				for (int j = 0; j < longueur; j++)
@@ -879,43 +848,38 @@ public class Partie
 		lapTime = time;
 	}
 	
-//	private void moveActiveMouses(){
-//
-//		int size = ActiveMouses.size();
-//		System.out.println(size + " active mouses");
-//		Coordinates exit = new Coordinates(0,0);
-//		
-//		for(int i=0; i< size ; i++){
-//			LapMouse lm = new LapMouse(ActiveMouses.pop());
-//
-//			System.out.println(" New mouse at " + lm.XY + " is to be moving");
-//			// Décrémenter nombre de tour pour toutes les souris
-//			lm.decreaseLap();
-//			// si tour = 0 alors 
-//			if(lm.Lap == 0){
-//				// exécuter l'algorithme pour toutes les destinations
-//				if(algorithm(lm.XY,exit)<0){
-//					lm.setLap(1);
-//					ActiveMouses.push(lm);
-//					System.out.println("None path has been chosen");
-//					continue;
-//				}
-//				
-//				System.out.println("going to " + exit);
-//				// tenter un déplacement vers la sortie la plus rapide
-//				moveLapMouse(lm,exit);
-//				System.out.println(lm.XY + " is going to be pushed ");
-//				ActiveMouses.push(lm);
-//				System.out.println(lm.XY + " pushed ");
-//			}
-//			else{
-//			// sinon ajouter la souris à ActiveMouses
-//				ActiveMouses.push(lm);
-//			}
-//			
-//		}
-//
-//	}
+	private void UpdateMouses(){
+		long estimatedTime = System.currentTimeMillis() - startTime;
+
+		if(startGame && estimatedTime > getLapTime())
+		{
+			// Incrémenter le nombre de tour
+			nbLap++;
+			
+			// traiter toutes les souris déjà présentes sur le terrain
+			if(nbActiveMouses > 0){
+				moveActiveMouses();
+			}
+			
+			// Ajout de nouvelles souris si disponible
+			if(!arrivalArray.isEmpty())
+				SearchAndSetNewMouses();
+			
+			if(nbActiveMouses == 0)
+				System.out.println("arrivalArray size = " + arrivalArray.size());
+			// Fin de la Partie si la liste arrivalArray est vide et s'il n'y a plus d'activeMouses (souris en déplacement)
+			if(arrivalArray.isEmpty() && nbActiveMouses<=0 ){
+				System.out.println("Fin de la partie");
+				System.out.println("Nombre de deplacements = " + nbMove);
+				System.out.println("Nombre de tours = " + nbLap);
+				System.out.println("Nombre de souris arrivées = " + arrivedMouses);
+				System.out.println("Nombre de souris devant arriver = " + MousesToGo);
+				System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);	
+				startGame = false;
+			}			
+			startTime = System.currentTimeMillis();
+		}
+	}
 	
 	private void printActiveMouses(){
 		System.out.println("ActiveMouses :");
@@ -949,8 +913,8 @@ public class Partie
 				}
 				
 				// tenter un déplacement vers la sortie la plus rapide
-				moveLapMouse(tab.get(i),exit);
-				ActiveMouses.push(tab.get(i));
+				if(moveLapMouse(tab.get(i),exit) > 0)
+					ActiveMouses.push(tab.get(i));
 			}
 			else{
 			// sinon ajouter la souris à ActiveMouses
@@ -1004,24 +968,33 @@ public class Partie
 	}
 	
 	private void seekAndDecreaseArrivalPoint(Coordinates coord){
-		if(arrivalArray.isEmpty()) return;
+		if(arrivalArray.isEmpty()){
+			System.out.println("Impossible de décrémenter Arrival Point " + coord + " car le tableau d'arrivée est vide");
+			return;
+		}
+		boolean found = false;
 		for(ArrivalPoint ar : arrivalArray){
 			if(ar.getCoordinates().equals(coord)){
 				ar.decrease();
 				System.out.println("Arrival Point " + ar.getCoordinates() + " has been decreased");
+				found = true;
 				//	Si le point d'arrivée est nul retirer le point d'arrivée de la liste
 				if(ar.isFull()){
 					if(arrivalArray.remove(ar) == false){
 						System.out.println("Cannot retrieve ArrivalPoint");
 						System.exit(0);
 					}
+					System.out.println("Point d'arrivée " + ar.getCoordinates() + " retiré de la liste");
 				}
 				break;						
 			}
 		}
+		if(!found)
+			System.out.println("Le point d'arrivée " + coord + " n'est pas ou plus répertorié");
 	}
 	
-	private void moveLapMouse(LapMouse l, Coordinates exit){
+	
+	private int moveLapMouse(LapMouse l, Coordinates exit){
 		
 		int res = move(mapNodes[l.XY.x][l.XY.y],mapNodes[exit.x][exit.y]);
 		
@@ -1044,7 +1017,7 @@ public class Partie
 				nbActiveMouses--;
 				System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);
 
-				break;
+				return 0;
 			case 0:
 				// si la case d'arrivée est de l'herbe
 				if(mapNodes[exit.x][exit.y].is_grass()){
@@ -1061,8 +1034,10 @@ public class Partie
 			default:
 				break;
 		}
+		return 1;
 	}
-	// Affichage des sabelettes aux positions où ils se trouvent
+	
+	// Recherche des nouvelles souris disponibles aux points d'apparition
 	private void SearchAndSetNewMouses() {
 		if (departureXY == null) {
 			System.out.println("Tableau de points d'apparition non assigné");
@@ -1078,7 +1053,7 @@ public class Partie
 		}						
 	}
 
-	// Affichage des sabelettes au point d'apparition
+	// Affichage des nouvelles souris près du point d'apparition 
 	private void AddStartingMouses(GenericNode entrynode) {
 		if(MousesToGo <= 0) return;
         for (IEdge e : entrynode.getEdges()){
@@ -1089,20 +1064,22 @@ public class Partie
 	private void TestNodeAndAddStartingMouse(GenericNode entrynode, GenericNode nodeToGo){
 		if(MousesToGo > 0 && TestWalkableNode(nodeToGo)){
 			// Si le déplacement réussit
-				// Ajouter les souris dans ActiveMouses 
-				// Incrémenter le nombre de souris en déplacement
-				// Décrémenter le nombre de souris pouvant apparaître (MousesToGo)
 			if(move(entrynode,nodeToGo) == 0){
-				addActiveMouses(nodeToGo);
+				// Ajouter les souris dans ActiveMouses 
+				addNewActiveMouses(nodeToGo);
+				
+				// Incrémenter le nombre de souris en déplacement
 				nbActiveMouses++;
 				System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);
-
+				
+				// Décrémenter le nombre de souris pouvant apparaître (MousesToGo)
 				MousesToGo--;
 			}
 		}
 	}
 	
-	private void addActiveMouses(GenericNode nodeToGo){
+	// Ajout d'une nouvelle souris sur le terrain et paramètre le nombre de tours selon le type du terrai
+	private void addNewActiveMouses(GenericNode nodeToGo){
 		LapMouse lm = new LapMouse(nodeToGo.getCoordinates());
 		if(nodeToGo.is_grass())
 			lm.setLap(2); // 2 tours
@@ -1111,7 +1088,7 @@ public class Partie
 		ActiveMouses.push(lm);
 	}
 	
-	// Vérifie l'existence du noeud et paramètre sa texture se lo
+	// Vérifie l'existence du noeud et indique si son occupation est possible
 	private boolean TestWalkableNode(GenericNode node) {
 		if (node != null) {
 			if (node.is_Walkable())
@@ -1141,13 +1118,14 @@ public class Partie
 		GL11.glVertex2f(x, y + width);
 		GL11.glEnd();
 	}
-
+	
 	public static void main(String[] argv)
 	{
 		Partie partie = new Partie();
 		partie.start();
 	}
 
+	/** Setters pour les textures de souris avec direction **/
 	public Texture getFromLeftMouseTexture() {
 		return fromLeftMouseTexture;
 	}

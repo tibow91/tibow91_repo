@@ -10,9 +10,9 @@ public class AlgoDijkstra {
     public static <K,V> void computePaths(GenericNode source, GenericNode dest)
     {
         source.setMinDistance(0);
-		AlgoComparator<AlgoDijkstraNode<K,V>> comp = new AlgoComparator<AlgoDijkstraNode<K,V>>();
-        AlgoPriorityQueue<AlgoDijkstraNode<K,V>> Queue = new AlgoPriorityQueue<AlgoDijkstraNode<K,V>>(comp);
-      	Queue.add((AlgoDijkstraNode<K,V>)source);
+		AlgoComparator<IDijkstraNode<K,V>> comp = new AlgoComparator<IDijkstraNode<K,V>>();
+        AlgoPriorityQueue<IDijkstraNode<K,V>> Queue = new AlgoPriorityQueue<IDijkstraNode<K,V>>(comp);
+      	Queue.add((IDijkstraNode<K,V>)source);
       	boolean firststep = true;
       	
       	while (Queue.peek() != null) 
@@ -26,22 +26,23 @@ public class AlgoDijkstra {
             for (IEdge e : u.getEdges())
             {
             	GenericNode v = (GenericNode) e.getOther(u);
+            	if(v.is_arrival() && dest != v) continue;
             	if(firststep && !v.is_Walkable()) continue;
                 int weight = (int) e.getAttribute("cost");  
                 int distanceThroughU = u.getMinDistance() + weight;
 				if (distanceThroughU < v.getMinDistance()) 
 				{
-				    Queue.remove((AlgoDijkstraNode<K,V>)v);
+				    Queue.remove((IDijkstraNode<K,V>)v);
 				    v.setMinDistance(distanceThroughU);
 				    v.setPrevious(u);
-				    Queue.add((AlgoDijkstraNode<K,V>)v);
+				    Queue.add((IDijkstraNode<K,V>)v);
 //				    System.out.println("<");
 		 		}
 //				System.out.println("edge");
             }
             firststep = false;
             
-//            System.out.println("AlgoDijkstraNode u = " + u);
+//            System.out.println("IDijkstraNode u = " + u);
         }
 		source.setPrevious(null);
 
