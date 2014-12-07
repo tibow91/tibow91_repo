@@ -1,6 +1,5 @@
 package projet_Java;
 
-import projet_Java.AlgoLinkedList;
 public class FifoStack<V> {
 	
 	private AlgoLinkedList<V> topObject = null;
@@ -14,15 +13,19 @@ public class FifoStack<V> {
 		if(!isEmpty())
 		{
 			topValue = peek();
-			if(size() > 1)
-				newtopObject = topObject.getNext();
+			if(topObject.getNext() != null){
+				topObject.getNext().setPrevious(null);
+			}
+			topObject = topObject.getNext();
 				
-			topObject.remove();
+//			topObject.remove();
 			size --;
 		}
-		else{} // StackEmptyException
+		else{
+			topObject = newtopObject;
+
+		} // StackEmptyException
 		
-		topObject = newtopObject;
 		return topValue;
 
 	}
@@ -37,7 +40,7 @@ public class FifoStack<V> {
 	}
 	
 	public void push(V value)
-	{				
+	{
 		if(isEmpty()){
 			topObject = new AlgoLinkedList<V>(value);
 		}

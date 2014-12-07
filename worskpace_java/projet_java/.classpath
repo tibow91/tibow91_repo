@@ -16,5 +16,6 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="jar/lwjgl-2.9.1/lwjgl-2.9.1/jar/lzma.jar"/>
 	<classpathentry kind="lib" path="jar/slick-util.jar"/>
+	<classpathentry kind="lib" path="jar/graph-core-interfaces.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

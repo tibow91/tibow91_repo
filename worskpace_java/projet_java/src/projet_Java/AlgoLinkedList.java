@@ -40,7 +40,9 @@ public class AlgoLinkedList<V> {
 			getPrevious().setNext(getNext());
 		
 		if(getNext() != null)
-			getNext().setPrevious(getPrevious());		
+			getNext().setPrevious(getPrevious());	
+		setNext(null);
+		setPrevious(null);
 	}
 	
 	public void setNewEndLinkedList(V val){
@@ -50,6 +52,10 @@ public class AlgoLinkedList<V> {
 		
 		else
 			getNext().setNewEndLinkedList(val);
+	}
+	
+	public AlgoLinkedList (){
+//		setValue(val);
 	}
 	public AlgoLinkedList (V val){
 		setValue(val);

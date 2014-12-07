@@ -6,8 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import javax.sound.midi.SysexMessage;
-
 import org.lwjgl.LWJGLException;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -19,28 +17,12 @@ import org.newdawn.slick.opengl.Texture;
 import org.newdawn.slick.opengl.TextureLoader;
 import org.newdawn.slick.util.ResourceLoader;
 
-import projet_Java.Node;
+import algo.graph.interfaces.IEdge;
+import projet_Java.GenericNode;
 
-class Coordinates{
-	public int x=0;
-	public int y=0;
-	public Coordinates(int x_, int y_)
-	{
-		x= x_;
-		y= y_;
-	}
-}
-
-class Deplacement{
-	public Coordinates coord = null;
-	public int time = 0;
-	public Deplacement (Coordinates xy, int duration){
-		coord = new Coordinates(xy.x, xy.y);
-		time = duration;
-	}
-}
-
-public class Partie {
+import java.util.ArrayList;
+public class Partie
+{
 	private String lignes[]; // Charge les lignes du fichier map.txt
 	private int nblignes = 0, longueur = 0; // Délimite le nombre de pixels de
 											// la map (lignes/colonnes)
@@ -52,21 +34,37 @@ public class Partie {
 
 	private Texture defaultTexture = null; // Texture par défaut (texture de sol
 											// par exemple)
-	private Texture mouseTexture = null;
-	private Node<Integer> mapNodes[][]; // Noeuds de la carte
+	private Texture mouseTexture = null; 
+	private GenericNode mapNodes[][]; // Noeuds de la carte
 	private int departureXY[][] = null; // Point(s) d'apparition
-	private FifoStack<Coordinates> StartingMousesToAdd = new FifoStack<Coordinates>(); 
-	private FifoStack<Coordinates> ActiveMouses = new FifoStack<Coordinates>(); 
-	long startTime = System.currentTimeMillis();
-	Coordinates mouseTest = null;
 
+	private int nbActiveMouses = 0; // Nombre de souris en déplacement
+	private static FifoStack<LapMouse> ActiveMouses = new FifoStack<LapMouse>(); 
+	private long lapTime = 350;
+	long startTime = System.currentTimeMillis();
+	private int nbMove = 0;
+	private int nbLap = 0;
+	private int arrivedMouses = 0;
+	private ArrayList<ArrivalPoint> arrivalArray = new ArrayList<ArrivalPoint>();
+	private FifoStack<Integer> doorMoves = new FifoStack<Integer>();
+	private int MousesToGo = 0;
+	
+	private Texture fromLeftMouseTexture = null;
+	private Texture fromRightMouseTexture = null;
+	private Texture fromUpMouseTexture = null;
+	private Texture fromDownMouseTexture = null;
+	private Texture fromUpLeftMouseTexture = null;
+	private Texture fromUpRightMouseTexture = null;
+	private Texture fromDownLeftMouseTexture = null;
+	private Texture fromDownRightMouseTexture = null;
 
 	public void start() // Lance la partie
 	{
 		initGL(1366, 600, "Java Project ESGI"); // Initialise openGL
 		init("map.txt"); // Initialise la map
 
-		while (true) {
+		while (true)
+		{
 			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT); // (Ré)Initialisation du
 													// buffer graphique
 			pollInput();
@@ -84,13 +82,16 @@ public class Partie {
 	}
 
 	// Initialise openGL
-	private void initGL(int width, int height, String windowTitle) {
-		try {
+	private void initGL(int width, int height, String windowTitle)
+	{
+		try
+		{
 			Display.setDisplayMode(new DisplayMode(width, height));
 			Display.create();
 			Display.setVSyncEnabled(true);
 			Display.setTitle(windowTitle);
-		} catch (LWJGLException e) {
+		} catch (LWJGLException e)
+		{
 			e.printStackTrace();
 			System.exit(0);
 		}
@@ -112,8 +113,10 @@ public class Partie {
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 	}
 
-	public void init(String mapfilename) {
-		if (checkEmptyFileandCountLines(mapfilename)) {
+	public void init(String mapfilename)
+	{
+		if (checkEmptyFileandCountLines(mapfilename))
+		{
 			System.out.println("Fichier " + mapfilename + " vide.");
 			System.exit(0);
 		}
@@ -124,15 +127,28 @@ public class Partie {
 
 		initAndLinkMapNodes();
 		setMapNodesAndSetTextures();
+		setEdgesAndGraph();
 		getDeparturePoints(); // Récupération des points d'apparition pour que
 								// les sabelettes puissent rentrer
+
+		//		System.out.println("path "+ mapNodes[22][7] + " to " + mapNodes[x][y] + " = " + AlgoDijkstra.route(mapNodes[22][7], mapNodes[x][y]));
 		setMouseTexture("PNG", "map/mouse.png");
+		calculateArrivalPointsNumber();
+		setFromLeftMouseTexture("map/m_right.png");
+		setFromRightMouseTexture("map/m_left.png");
+		setFromUpMouseTexture("map/m_front.png");
+		setFromDownMouseTexture("map/m_back.png");
+		setFromDownLeftMouseTexture("map/m_rightTop.png");
+		setFromDownRightMouseTexture("map/m_leftTop.png");
+		setFromUpRightMouseTexture("map/m_leftBottom.png");
+		setFromUpLeftMouseTexture("map/m_rightBottom.png");
 	}
 
 	/****************************************************************/
 	/************* GESTION DE LECTURE D'UN FICHIER ******************/
 	// Vérifie la viabilité du fichier et compte le nombre de lignes
-	private boolean checkEmptyFileandCountLines(String filename) {
+	private boolean checkEmptyFileandCountLines(String filename)
+	{
 		nblignes = 0;
 		nblignes = countLines(filename);
 		if (nblignes == 0)
@@ -141,7 +157,8 @@ public class Partie {
 	}
 
 	// Compte le nombre de lignes du fichier
-	private int countLines(String filename) {
+	private int countLines(String filename)
+	{
 		int linenumber = 0;
 		br = openFile(filename); // Chargement du fichier dans un buffer
 
@@ -154,15 +171,17 @@ public class Partie {
 		return linenumber;
 	}
 
-	private BufferedReader openFile(String filename) {
+	private BufferedReader openFile(String filename)
+	{
 		// Chargement du fichier dans un buffer
-		try {
+		try
+		{
 			ips = new FileInputStream(filename);
 			ipsr = new InputStreamReader(ips);
 			br = new BufferedReader(ipsr);
 			return br;
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
+		} catch (FileNotFoundException e)
+		{
 			e.printStackTrace();
 			System.out.println("Cannot find map file " + filename);
 			System.exit(0);
@@ -171,12 +190,14 @@ public class Partie {
 	}
 
 	// Lecture d'une ligne du fichier ouvert
-	private String readLine() {
+	private String readLine()
+	{
 		String line = null;
-		try {
+		try
+		{
 			line = br.readLine();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (IOException e)
+		{
 			e.printStackTrace();
 			System.exit(0);
 		}
@@ -184,33 +205,39 @@ public class Partie {
 	}
 
 	// Fermeture du fichier ouvert
-	private void closeFile(String filename) {
-		try {
+	private void closeFile(String filename)
+	{
+		try
+		{
 			br.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (IOException e)
+		{
 			e.printStackTrace();
 			System.exit(0);
 		}
-		try {
+		try
+		{
 			ipsr.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (IOException e)
+		{
 			e.printStackTrace();
 			System.exit(0);
 		}
-		try {
+		try
+		{
 			ips.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (IOException e)
+		{
 			e.printStackTrace();
 			System.exit(0);
 		}
 	}
 
 	// Charge les lignes du fichier dans le tableau de String lignes
-	private void loadFileLines(String filename) {
-		if (checkEmptyFileandCountLines(filename)) {
+	private void loadFileLines(String filename)
+	{
+		if (checkEmptyFileandCountLines(filename))
+		{
 			System.out.println("Fichier " + filename + " vide.");
 			System.exit(0);
 		}
@@ -219,9 +246,11 @@ public class Partie {
 		lignes = new String[nblignes]; // Allocation des lignes
 
 		// Chargement des lignes du fichier
-		for (int i = 0; i < nblignes; i++) {
+		for (int i = 0; i < nblignes; i++)
+		{
 			lignes[i] = readLine(); // lecture d'une ligne
-			if (i == 0) {
+			if (i == 0)
+			{
 				longueur = lignes[i].length();
 				checkMapLineWidth(longueur);
 			} else
@@ -238,44 +267,51 @@ public class Partie {
 	{
 		if (width > 51) // Vérification de la bonne largeur de la map
 		{
-			System.out.println("La largeur de la map est trop grande (" + width
-					+ ")");
+			System.out.println("La largeur de la map est trop grande (" + width + ")");
 			System.exit(0);
 		}
 	}
 
 	// Vérification que la map est bien rectangulaire
-	private void checkMapFormat(String line, String filename) {
-		if (longueur != line.length()) {
-			System.out.println("Le fichier " + filename
-					+ " n'est pas un quadrilatère.");
+	private void checkMapFormat(String line, String filename)
+	{
+		if (longueur != line.length())
+		{
+			System.out.println("Le fichier " + filename + " n'est pas un quadrilatère.");
 			System.exit(0);
 		}
 	}
 
 	// Vérifie que la carte est bien fermée
-	private void checkMapSurroundings(char rockchar) {
-		if (nblignes <= 0) {
+	private void checkMapSurroundings(char rockchar)
+	{
+		if (nblignes <= 0)
+		{
 			System.out.println("Cannot checkMapSurroundings if file is empty");
 			System.exit(0);
 		}
 
-		for (int i = 0; i < nblignes; i++) {
-			if (lignes[i] == null) {
-				System.out
-						.println("Cannot checkMapSurroundings if lines of the file have not been loaded correctly");
+		for (int i = 0; i < nblignes; i++)
+		{
+			if (lignes[i] == null)
+			{
+				System.out.println("Cannot checkMapSurroundings if lines of the file have not been loaded correctly");
 				System.exit(0);
 			}
-			if (i == 0 || i == (nblignes - 1)) {
-				for (int j = 0; j < lignes[i].length(); j++) {
-					if (lignes[i].charAt(j) != rockchar) {
+			if (i == 0 || i == (nblignes - 1))
+			{
+				for (int j = 0; j < lignes[i].length(); j++)
+				{
+					if (lignes[i].charAt(j) != rockchar)
+					{
 						System.out.println("The map is not closed");
 						System.exit(0);
 					}
 				}
-			} else {
-				if (lignes[i].charAt(0) != rockchar
-						|| lignes[i].charAt(lignes[i].length() - 1) != rockchar) {
+			} else
+			{
+				if (lignes[i].charAt(0) != rockchar || lignes[i].charAt(lignes[i].length() - 1) != rockchar)
+				{
 					System.out.println("The map is not closed");
 					System.exit(0);
 				}
@@ -285,21 +321,24 @@ public class Partie {
 	}
 
 	// Fixe la texture par défaut
-	private void setDefaultTexture(String filetype, String filename) {
+	private void setDefaultTexture(String filetype, String filename)
+	{
 		defaultTexture = getTexture(filetype, filename);
 	}
 
 	/****************************************************************/
 	/********** CHARGEMENT ET PARAMETRAGE DES NOEUDS ****************/
 	// Initialise les noeuds de la carte et effectue la liaison entre eux
-	private void initAndLinkMapNodes() {
+	private void initAndLinkMapNodes()
+	{
 		initMapNodes();
-		for (int i = 0; i < nblignes; i++) {
-			for (int j = 0; j < longueur; j++) {
-				if (mapNodes[i][j] == null) {
-					System.out
-							.println("mapNode has not been set at coordonates i= "
-									+ i + " j= " + j);
+		for (int i = 0; i < nblignes; i++)
+		{
+			for (int j = 0; j < longueur; j++)
+			{
+				if (mapNodes[i][j] == null)
+				{
+					System.out.println("mapNode has not been set at coordonates i= " + i + " j= " + j);
 					System.exit(0);
 				}
 				if (j > 0)
@@ -312,64 +351,120 @@ public class Partie {
 					mapNodes[i][j].setDownLeftNode(mapNodes[i + 1][j - 1]);
 			}
 		}
+		
 	}
 
 	// Initialise les noeuds de la carte si les dimensions de la carte ont bien
 	// été chargées
-	private void initMapNodes() {
-		if (nblignes <= 0 || longueur <= 0) {
-			System.out
-					.println("Cannot initialize Map Nodes. Please set the map format correctly");
+	private void initMapNodes()
+	{
+		if (nblignes <= 0 || longueur <= 0)
+		{
+			System.out.println("Cannot initialize Map Nodes. Please set the map format correctly");
 			System.exit(0);
 		}
-		mapNodes = new Node[nblignes][longueur];
+		mapNodes = new GenericNode[nblignes][longueur];
 		for (int i = 0; i < nblignes; i++)
+		{
 			for (int j = 0; j < longueur; j++)
-				mapNodes[i][j] = new Node<Integer>();
+			{
+				String key = "" + i + "-" + j;
+				mapNodes[i][j] = new GenericNode(key,new Coordinates(i,j));
+				mapNodes[i][j].setName(key);
+			}
+		}
+	}
+
+	// Créée les Edges et le graph
+	private void setEdgesAndGraph()
+	{
+
+		GenericEdge<String,Object> edge = null;
+		int weight = 0;
+		Graph<String,Object> graph = new Graph<String, Object>();
+		for (int i = 0; i < nblignes; i++)
+		{
+			for (int j = 0; j < longueur; j++)
+			{
+				if (mapNodes[i][j].is_grass() == true)
+				{
+					weight = 2;
+				} else
+				{
+					weight = 1; 
+				}
+				if (mapNodes[i][j].hasDownLeftNode() && mapNodes[i][j].getDownLeftNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getDownLeftNode(), weight);
+				
+				if (mapNodes[i][j].hasDownNode() && mapNodes[i][j].getDownNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getDownNode(), weight);
+				
+				if (mapNodes[i][j].hasDownRightNode() && mapNodes[i][j].getDownRightNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getDownRightNode(), weight);
+				
+				if (mapNodes[i][j].hasLeftNode() && mapNodes[i][j].getLeftNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getLeftNode(), weight);
+				
+				if (mapNodes[i][j].hasRightNode() && mapNodes[i][j].getRightNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getRightNode(), weight);
+				
+				if (mapNodes[i][j].hasUpLeftNode() && mapNodes[i][j].getUpLeftNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getUpLeftNode(), weight);
+				
+				if (mapNodes[i][j].hasUpNode() && mapNodes[i][j].getUpNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getUpNode(), weight);
+				
+				if (mapNodes[i][j].hasUpRightNode() && mapNodes[i][j].getUpRightNode().is_Walkable())
+					edge = new GenericEdge<String,Object>(mapNodes[i][j], mapNodes[i][j].getUpRightNode(), weight);
+
+				graph.registerNode(mapNodes[i][j]);
+
+				//System.out.println(mapNodes[i][j].getName() + " # " + mapNodes[i][j].getEdges().size());
+//				System.out.println(graph.getNodes().size());
+			}
+		}
 	}
 
 	// Paramètres les noeuds de la map textures comprises
-	private void setMapNodesAndSetTextures() {
+	private void setMapNodesAndSetTextures()
+	{
 		// Parcourt les lignes du fichier
 		// Chargement des textures selon les caractères du fichier map
 		boolean error = false;
-		for (int i = 0; i < nblignes; i++) {
-			for (int j = 0; j < longueur; j++) {
-				switch (lignes[i].charAt(j)) {
-				case '*': // MUR
-					mapNodes[i][j].setTexture(getMapTexture("PNG",
-							"map/rock.png"));
-					mapNodes[i][j].setValue(999);
-					mapNodes[i][j].setAsWall();
-					break;
-				case ' ': // Zone normale de déplacement
-					mapNodes[i][j].setTexture(getMapTexture("PNG",
-							"map/dust.png"));
-					mapNodes[i][j].setValue(100);
-					break;
-				case 'D': // Point d'apparition des personnages
-					mapNodes[i][j].setTexture(getMapTexture("PNG",
-							"map/door.png"));
-					mapNodes[i][j].setValue(100);
-					mapNodes[i][j].setAsDeparture();
-					break;
-				case 'A': // Point d'arrivée des personnages
-					mapNodes[i][j].setTexture(getMapTexture("PNG",
-							"map/cheese.png"));
-					mapNodes[i][j].setValue(100);
-					mapNodes[i][j].setAsArrival();
-					break;
-				case 'G': // Point d'arrivée des personnages
-					mapNodes[i][j].setTexture(getMapTexture("PNG",
-							"map/grass.png"));
-					mapNodes[i][j].setValue(200);
-					break;
-				default:
-					System.out.println("Character '" + lignes[i].charAt(j)
-							+ "' has no associated texture at i= " + i
-							+ " and j= " + j);
-					error = true;
-					break;
+		for (int i = 0; i < nblignes; i++)
+		{
+			for (int j = 0; j < longueur; j++)
+			{
+				switch (lignes[i].charAt(j))
+				{
+					case '*': // MUR
+						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/rock.png"));
+						mapNodes[i][j].setValueNode(999);
+						mapNodes[i][j].setAsWall();
+						break;
+					case ' ': // Zone normale de déplacement
+						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/dust.png"));
+						mapNodes[i][j].setValueNode(100);
+						break;
+					case 'D': // Point d'apparition des personnages
+						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/door.png"));
+						mapNodes[i][j].setValueNode(100);
+						mapNodes[i][j].setAsDeparture();
+						break;
+					case 'A': // Point d'arrivée des personnages
+						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/cheese.png"));
+						mapNodes[i][j].setValueNode(100);
+						mapNodes[i][j].setAsArrival();
+						break;
+					case 'G': // Point d'arrivée des personnages
+						mapNodes[i][j].setTexture(getMapTexture("PNG", "map/grass.png"));
+						mapNodes[i][j].setValueNode(200);
+						mapNodes[i][j].setAsGrass();
+						break;
+					default:
+						System.out.println("Character '" + lignes[i].charAt(j) + "' has no associated texture at i= " + i + " and j= " + j);
+						error = true;
+						break;
 				}
 			}
 		}
@@ -380,9 +475,9 @@ public class Partie {
 	/****************************************************************/
 	/****************** GESTION DES TEXTURES ************************/
 	// Récupère une texture à partir du fichier indiqué s'il correspond bien aux
-	// dimensions des
-	// textures par défaut
-	private Texture getMapTexture(String filetype, String filename) {
+	// dimensions des textures par défaut
+	private Texture getMapTexture(String filetype, String filename)
+	{
 		Texture texture;
 		texture = getTexture(filetype, filename);
 		checkMapTextureFormat(texture, filename);
@@ -391,26 +486,28 @@ public class Partie {
 
 	// Vérifie si la texture correspond bien aux dimensions de la texture par
 	// défault
-	private void checkMapTextureFormat(Texture texture, String texturefilename) {
-		if (texture.getImageHeight() != getDefaultTexture().getImageHeight()) {
-			System.out.println("The image texture " + texturefilename
-					+ " height don't match with default texture height");
+	private void checkMapTextureFormat(Texture texture, String texturefilename)
+	{
+		if (texture.getImageHeight() != getDefaultTexture().getImageHeight())
+		{
+			System.out.println("The image texture " + texturefilename + " height don't match with default texture height");
 			System.exit(0);
-		} else if (texture.getImageWidth() != getDefaultTexture()
-				.getImageWidth()) {
-			System.out.println("The image texture " + texturefilename
-					+ " width don't match with default texture width");
+		} else if (texture.getImageWidth() != getDefaultTexture().getImageWidth())
+		{
+			System.out.println("The image texture " + texturefilename + " width don't match with default texture width");
 			System.exit(0);
 		}
 	}
 
 	// Charge une texture à partir du fichier indiqué
-	private Texture getTexture(String filetype, String filename) {
+	private Texture getTexture(String filetype, String filename)
+	{
 		Texture texture = null;
-		try {
-			texture = TextureLoader.getTexture(filetype,
-					ResourceLoader.getResourceAsStream(filename));
-		} catch (Exception e) {
+		try
+		{
+			texture = TextureLoader.getTexture(filetype, ResourceLoader.getResourceAsStream(filename));
+		} catch (Exception e)
+		{
 			System.out.println(e.toString());
 			System.exit(0);
 		}
@@ -420,20 +517,24 @@ public class Partie {
 	/****************************************************************/
 	/********** CHARGEMENT DES POINTS D'APPARITION ******************/
 	// Charge les coordonnées des points d'apparition
-	private void getDeparturePoints() {
+	private void getDeparturePoints()
+	{
 		int nb = 0;
 		nb = getDeparturePointsNumber();
-
-		if (nb == 0) {
-			System.out
-					.println("Il n'y a pas de points d'apparition sur la map");
+		System.out.println(nb + " departure points");
+		if (nb == 0)
+		{
+			System.out.println("Il n'y a pas de points d'apparition sur la map");
 			System.exit(0);
 		}
 		departureXY = new int[nb][2];
 
-		for (int i = 0, x = 0; i < nblignes; i++) {
-			for (int j = 0; j < longueur; j++) {
-				if (mapNodes[i][j].is_departure() && x < nb) {
+		for (int i = 0, x = 0; i < nblignes; i++)
+		{
+			for (int j = 0; j < longueur; j++)
+			{
+				if (mapNodes[i][j].is_departure() && x < nb)
+				{
 					departureXY[x][0] = i;
 					departureXY[x][1] = j;
 					x++;
@@ -444,7 +545,8 @@ public class Partie {
 	}
 
 	// Comptage des points d'apparition
-	private int getDeparturePointsNumber() {
+	private int getDeparturePointsNumber()
+	{
 		int nb = 0;
 		for (int i = 0; i < nblignes; i++)
 			for (int j = 0; j < longueur; j++)
@@ -453,68 +555,109 @@ public class Partie {
 		return nb;
 	}
 	
+	private void calculateArrivalPointsNumber()
+	{
+		int nb = 0;
+		for (int i = 0; i < nblignes; i++){
+			for (int j = 0; j < longueur; j++){
+				if (mapNodes[i][j].is_arrival())
+				{
+					ArrivalPoint ar = new ArrivalPoint(new Coordinates(i,j));
+					if(!doorMoves.isEmpty()){
+						ar.nbMovesToGo = doorMoves.pop();
+					}
+					nb++;
+					arrivalArray.add(ar);
+				}
+			}
+		}
+		for(int i=0; i<nb; i++){
+			MousesToGo += arrivalArray.get(i).nbMovesToGo;
+		}
+		if(nb == 0){
+			System.out.println("there is not Arrival Points available !!!");
+			System.exit(0);
+		}
+	}
+	
+
 	// Paramètre la texture représentant la souris
-	public void setMouseTexture(String filetype, String filename) {
+	private void setMouseTexture(String filetype, String filename) {
 		this.mouseTexture = getTexture(filetype, filename);
 	}
 
 	// Détection des périphériques d'entrée (clavier/souris)
-	public void pollInput() {
+	public void pollInput()
+	{
 
-		if (Mouse.isButtonDown(0)) {
+		if (Mouse.isButtonDown(0))
+		{
 			int x = Mouse.getX();
 			int y = Mouse.getY();
 
 			System.out.println("MOUSE DOWN @ X: " + x + " Y: " + y);
 		}
 
-		if (Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
+		if (Keyboard.isKeyDown(Keyboard.KEY_SPACE))
+		{
 			System.out.println("SPACE KEY IS DOWN");
 		}
 
-		while (Keyboard.next()) {
-			if (Keyboard.getEventKeyState()) {
-				if (Keyboard.getEventKey() == Keyboard.KEY_DOWN) {
-					if(moveDown(mapNodes[mouseTest.x][mouseTest.y]) == 1)	
-						mouseTest.x ++;
+		while (Keyboard.next())
+		{
+			if (Keyboard.getEventKeyState())
+			{
+				if (Keyboard.getEventKey() == Keyboard.KEY_DOWN)
+				{
 				}
-				if (Keyboard.getEventKey() == Keyboard.KEY_UP) {
-					if(moveUp(mapNodes[mouseTest.x][mouseTest.y])== 1)
-						mouseTest.x --;
+				if (Keyboard.getEventKey() == Keyboard.KEY_UP)
+				{
+					System.out.println("A Key Pressed");
 				}
-				if (Keyboard.getEventKey() == Keyboard.KEY_LEFT) {
-					if(moveLeft(mapNodes[mouseTest.x][mouseTest.y])== 1)
-						mouseTest.y --;
+				if (Keyboard.getEventKey() == Keyboard.KEY_LEFT)
+				{
+					System.out.println("A Key Pressed");
 				}
-				if (Keyboard.getEventKey() == Keyboard.KEY_RIGHT) {
-					if(moveRight(mapNodes[mouseTest.x][mouseTest.y])== 1)
-						mouseTest.y ++;
+				if (Keyboard.getEventKey() == Keyboard.KEY_RIGHT)
+				{
+					System.out.println("A Key Pressed");
 				}
 
-			} else {
-				if (Keyboard.getEventKey() == Keyboard.KEY_DOWN) {
+			} else
+			{
+				if (Keyboard.getEventKey() == Keyboard.KEY_DOWN)
+				{
+					System.out.println("A Key Released");
 				}
-				if (Keyboard.getEventKey() == Keyboard.KEY_UP) {
+				if (Keyboard.getEventKey() == Keyboard.KEY_UP)
+				{
+					System.out.println("A Key Released");
 				}
-				if (Keyboard.getEventKey() == Keyboard.KEY_LEFT) {
+				if (Keyboard.getEventKey() == Keyboard.KEY_LEFT)
+				{
+					System.out.println("A Key Released");
 				}
-				if (Keyboard.getEventKey() == Keyboard.KEY_RIGHT) {
+				if (Keyboard.getEventKey() == Keyboard.KEY_RIGHT)
+				{
+					System.out.println("A Key Released");
 				}
 			}
 		}
 	}
 	
-	private int move(Node<?> startNode, Node<?> endNode){
-		if(!startNode.is_Occupied())
-			System.out.println("the start Node is not occupied");
+	private int move(GenericNode startNode, GenericNode endNode){
+		if(!startNode.is_Occupied() && !startNode.is_departure()){
+			System.out.println("the start Node " + startNode + " is not occupied");
+		}
 		else if(endNode.is_Occupied())
 			System.out.println("the end Node is occupied");
 		else if(endNode.is_arrival())
 		{
 			startNode.setAsNotOccupied();
+			System.out.println("The mouse on "+ startNode + "has arrived !");
 			// Enlever la souris de la liste des souris actives
 			// Décrémenter le nombre de souris
-			return 2;
+			return 1;
 		}
 		else if(!endNode.is_Walkable())
 			System.out.println("the end node is not walkable for a mouse");
@@ -522,62 +665,104 @@ public class Partie {
 		{
 			endNode.setAsOccupied();
 			startNode.setAsNotOccupied();
-			return 1;
+			if(startNode == endNode.getDownLeftNode())
+				endNode.setFromDownLeft(true);
+			else if(startNode == endNode.getDownRightNode())
+				endNode.setFromDownRight(true);
+			else if(startNode == endNode.getUpLeftNode())
+				endNode.setFromUpLeft(true);
+			else if(startNode == endNode.getUpRightNode())
+				endNode.setFromUpRight(true);
+			else if(startNode == endNode.getDownNode())
+				endNode.setFromDown(true);
+			else if(startNode == endNode.getUpNode())
+				endNode.setFromUp(true);
+			else if(startNode == endNode.getLeftNode())
+				endNode.setFromLeft(true);
+			else if(startNode == endNode.getRightNode())
+				endNode.setFromRight(true);
+			return 0;
 		}
-		return 0;
+		return -1;
 	}
 	
-	private int moveUp(Node<?> node){
+	private int moveUp(GenericNode node){
 		return move(node,node.getUpNode());
 	}
 	
-	private int moveDown(Node<?> node){
+	private int moveDown(GenericNode node){
 		return move(node,node.getDownNode());
 	}
-	private int moveLeft(Node<?> node){
+	private int moveLeft(GenericNode node){
 		return move(node,node.getLeftNode());
 	}
-	private int moveRight(Node<?> node){
+	private int moveRight(GenericNode node){
 		return move(node,node.getRightNode());
 	}
 	
-	private int moveUpRight(Node<?> node){
+	private int moveUpRight(GenericNode node){
 		return move(node,node.getUpRightNode());
 	}
 	
-	private int moveDownRight(Node<?> node){
+	private int moveDownRight(GenericNode node){
 		return move(node,node.getDownRightNode());
 	}
-	private int moveUpLeft(Node<?> node){
+	private int moveUpLeft(GenericNode node){
 		return move(node,node.getUpLeftNode());
 	}
-	private int moveDownLeft(Node<?> node){
+	private int moveDownLeft(GenericNode node){
 		return move(node,node.getDownLeftNode());
 	}
 	
+	private void cleanRoutesAndResetDistance(){
+		for(int i=0; i< nblignes; i++){
+			for(int j=0; j< longueur; j++){
+				mapNodes[i][j].setPrevious(null);
+				mapNodes[i][j].setMinDistance(Integer.MAX_VALUE);
+			}
+		}
+	}
 	
-
 	/****************************************************************/
 	/****************** AFFICHAGE GRAPHIQUE *************************/
 	// Mise à jour graphique de la carte
-	public void render() {
+	public void render()
+	{
 		Color.white.bind();
 		long estimatedTime = System.currentTimeMillis() - startTime;
-
-		try {
+		try
+		{
 			int xSpace = 0; // Abscisses
 			int ySpace = 0; // Ordonnées
 
 			// Définition des quadrilatères associés aux textures du tableau de
 			// textures
-			for (int i = 0; i < nblignes; i++) {
-				for (int j = 0; j < longueur; j++) {
+			for (int i = 0; i < nblignes; i++)
+			{
+				for (int j = 0; j < longueur; j++)
+				{
 					displayTextureQuad(getDefaultTexture(), xSpace, ySpace);
-					displayTextureQuad(mapNodes[i][j].getTexture(), xSpace,
-							ySpace);
-					if(mapNodes[i][j].is_Occupied())
-						displayTextureQuad(getMouseTexture(), xSpace,
-								ySpace);
+					displayTextureQuad(mapNodes[i][j].getTexture(), xSpace, ySpace);
+					if(mapNodes[i][j].is_Occupied()){
+						if(mapNodes[i][j].isFromDown())
+							displayTextureQuad(getFromDownMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromUp())
+							displayTextureQuad(getFromUpMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromRight())
+							displayTextureQuad(getFromRightMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromLeft())
+							displayTextureQuad(getFromLeftMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromUpLeft())
+							displayTextureQuad(getFromUpLeftMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromUpRight())
+							displayTextureQuad(getFromUpRightMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromDownRight())
+							displayTextureQuad(getFromDownRightMouseTexture(), xSpace,ySpace);
+						else if(mapNodes[i][j].isFromDownLeft())
+							displayTextureQuad(getFromDownLeftMouseTexture(), xSpace,ySpace);
+						else
+							displayTextureQuad(getMouseTexture(), xSpace,ySpace);
+					}
 
 					// Incrémentation de l'abscisse pour chaque colonne
 					xSpace += getDefaultTexture().getImageWidth();
@@ -589,19 +774,39 @@ public class Partie {
 				xSpace = 0;
 			}
 			
-			// ... do something ...
-			if(estimatedTime > 2000)
+			if(estimatedTime > getLapTime())
 			{
-				UpdateActiveMouses();
-				SearchAndSetNewMouses();
+				// Incrémenter le nombre de tour
+				nbLap++;
+				
+				// traiter toutes les souris de ActiveMouses
+				if(nbActiveMouses > 0){
+					moveActiveMouses();
+				}
+				if(!arrivalArray.isEmpty())
+					SearchAndSetNewMouses();
+				
+				// Fin de la Partie si la liste arrivalArray est vide et s'il n'y a plus d'activeMouses (souris en déplacement)
+				if(arrivalArray.isEmpty() && nbActiveMouses<=0 ){
+					System.out.println("Fin de la partie");
+					System.out.println("Nombre de deplacements = " + nbMove);
+					System.out.println("Nombre de tours = " + nbLap);
+					System.out.println("Nombre de souris arrivées = " + arrivedMouses);
+					System.out.println("Nombre de souris devant arriver = " + MousesToGo);
+					System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);
+
+					
+				}
+				
 				startTime = System.currentTimeMillis();
 			}
 
-			for (int i = 0; i < 1; i++) {
-				for (int j = 0; j < longueur; j++) {
+			for (int i = 0; i < 1; i++)
+			{
+				for (int j = 0; j < longueur; j++)
+				{
 					// displayTextureQuad(getDefaultTexture(),xSpace, ySpace);
-					displayQuad(xSpace, ySpace, getDefaultTexture()
-							.getImageWidth());
+					displayQuad(xSpace, ySpace, getDefaultTexture().getImageWidth());
 					xSpace += getDefaultTexture().getImageWidth();
 				}
 				// Incrémentation des ordonnées à la fin de chaque ligne
@@ -610,13 +815,15 @@ public class Partie {
 				xSpace = 0;
 			}
 
-		} catch (Exception e) {
+		} catch (Exception e)
+		{
 			e.printStackTrace();
 		}
 	}
 
 	// Affichage d'un bloc de texture aux coordonnées indiquées
-	private void displayTextureQuad(Texture texture, int x, int y) {
+	private void displayTextureQuad(Texture texture, int x, int y)
+	{
 		texture.bind(); // or GL11.glBind(texture.getTextureID());
 
 		GL11.glBegin(GL11.GL_QUADS);
@@ -625,11 +832,24 @@ public class Partie {
 		GL11.glTexCoord2f(1, 0);
 		GL11.glVertex2f(x + texture.getTextureWidth(), y);
 		GL11.glTexCoord2f(1, 1);
-		GL11.glVertex2f(x + texture.getTextureWidth(),
-				y + texture.getTextureHeight());
+		GL11.glVertex2f(x + texture.getTextureWidth(), y + texture.getTextureHeight());
 		GL11.glTexCoord2f(0, 1);
 		GL11.glVertex2f(x, y + texture.getTextureHeight());
 		GL11.glEnd();
+
+		GL11.glDisable(GL11.GL_TEXTURE_2D);
+		// set the color of the quad (R,G,B,A)
+		GL11.glColor3f(255, 150, 10);
+
+		// draw quad
+//		GL11.glBegin(GL11.GL_QUADS);
+//		GL11.glVertex2f(0, 100);
+//		GL11.glVertex2f(300, 100);
+//		GL11.glVertex2f(300, 300);
+//		GL11.glVertex2f(100, 0);
+//		GL11.glEnd();
+
+		GL11.glFlush();
 	}
 	
 	public Texture getMouseTexture() {
@@ -640,92 +860,259 @@ public class Partie {
 		}
 		return mouseTexture;
 	}
-
 	// Obtention de la texture par défaut
-	private Texture getDefaultTexture() {
-		if (defaultTexture == null) {
+	private Texture getDefaultTexture()
+	{
+		if (defaultTexture == null)
+		{
 			System.out.println("Default texture has not been set");
 			System.exit(0);
 		}
 		return defaultTexture;
 	}
 	
-	// met à jour la position des souris
-	private void UpdateActiveMouses() {
-//		FifoStack<Deplacement> UpdatedMouse = new FifoStack<Deplacement>();
-//		while(!ActiveMouses.isEmpty())
-//		{
-//			algorithm(ActiveMouses.pop(),UpdatedMouse);
-//		}
+	private long getLapTime(){
+		return lapTime;
+	}
+	
+	private void setLapTime(long time){
+		lapTime = time;
+	}
+	
+//	private void moveActiveMouses(){
+//
+//		int size = ActiveMouses.size();
+//		System.out.println(size + " active mouses");
+//		Coordinates exit = new Coordinates(0,0);
 //		
-//		while(!UpdatedMouse.isEmpty())
-//		{
-//			ActiveMouses.push(UpdatedMouse.pop());
+//		for(int i=0; i< size ; i++){
+//			LapMouse lm = new LapMouse(ActiveMouses.pop());
+//
+//			System.out.println(" New mouse at " + lm.XY + " is to be moving");
+//			// Décrémenter nombre de tour pour toutes les souris
+//			lm.decreaseLap();
+//			// si tour = 0 alors 
+//			if(lm.Lap == 0){
+//				// exécuter l'algorithme pour toutes les destinations
+//				if(algorithm(lm.XY,exit)<0){
+//					lm.setLap(1);
+//					ActiveMouses.push(lm);
+//					System.out.println("None path has been chosen");
+//					continue;
+//				}
+//				
+//				System.out.println("going to " + exit);
+//				// tenter un déplacement vers la sortie la plus rapide
+//				moveLapMouse(lm,exit);
+//				System.out.println(lm.XY + " is going to be pushed ");
+//				ActiveMouses.push(lm);
+//				System.out.println(lm.XY + " pushed ");
+//			}
+//			else{
+//			// sinon ajouter la souris à ActiveMouses
+//				ActiveMouses.push(lm);
+//			}
+//			
 //		}
+//
+//	}
+	
+	private void printActiveMouses(){
+		System.out.println("ActiveMouses :");
+		for(int i=0; i<ActiveMouses.size(); i++){
+			LapMouse l = ActiveMouses.pop();
+			System.out.println(l.XY);
+			ActiveMouses.push(l);						
+		}
 	}
 	
+	private void moveActiveMouses(){
 
-	private void algorithm( Coordinates coord, FifoStack<Deplacement> pil){
-		// Etablir la nouvelle position vers laquelle déplacer la souris
-		// Tenter un déplacement de la souris avec move
-		// Si le déplacement a réussi ajouter les nouvelles coordonées à pil
-		// Sinon si la souris a atteint le point d'arrivée ne rien faire
-		// sinon si la souris ne peut pas se déplacer réajouter l'ancienne position à la pile pil
+		int size = ActiveMouses.size();
+		ArrayList<LapMouse> tab = new ArrayList<LapMouse>();
+		for(int i=0; i< size ; i++){
+			tab.add(ActiveMouses.pop());
+		}
+		for(int i=0; i< size ; i++){
+			// Décrémenter nombre de tour pour toutes les souris
+			tab.get(i).decreaseLap();
+			// si tour = 0 alors 
+			if(tab.get(i).Lap == 0){
+				Coordinates exit = new Coordinates(0,0);
+
+				// exécuter l'algorithme pour toutes les destinations
+				if(algorithm(tab.get(i).XY,exit)<0){
+					tab.get(i).setLap(1);
+					ActiveMouses.push(tab.get(i));
+					System.out.println("None path has been chosen ");
+					continue;
+				}
+				
+				// tenter un déplacement vers la sortie la plus rapide
+				moveLapMouse(tab.get(i),exit);
+				ActiveMouses.push(tab.get(i));
+			}
+			else{
+			// sinon ajouter la souris à ActiveMouses
+				ActiveMouses.push(tab.get(i));
+			}
+			
+		}
+		tab.clear();
 		
+		
+	}
+	private int algorithm( Coordinates startpoint, Coordinates blocktogo){
+		int xa = startpoint.x;
+		int ya = startpoint.y;
+		if(arrivalArray.isEmpty()) return -1;
+		
+		boolean foundOne = false;
+		Coordinates dest = new Coordinates(0,0);
+		int size = arrivalArray.size();
+		int minDistance = Integer.MAX_VALUE;
+		for(int i=0; i< size; i++){
+			
+			ArrivalPoint ap = arrivalArray.get(i);
+			int xb= ap.XY.x;
+			int yb= ap.XY.y;
+//			System.out.println("Lancement de l'algorithme pour " + startpoint + " vers pt d'arrivée " + ap.getCoordinates());;
+			ArrayList<GenericNode> path =  AlgoDijkstra.route(mapNodes[xa][ya],mapNodes[xb][yb] );
+//			System.out.println(mapNodes[xa][ya] +" path = " + path);
+			
+			if(path.isEmpty()){
+				cleanRoutesAndResetDistance();
+				continue;
+			}
+			GenericNode nodetogo = (GenericNode) path.get(0);
+			int newDistance = path.get(path.size()-1).getMinDistance();
+			path.clear();
+			cleanRoutesAndResetDistance();
+
+			if(newDistance < minDistance){
+				foundOne = true;
+				minDistance = newDistance;
+				dest.setCoordinates(nodetogo.getCoordinates());
+			}			
+		}
+		
+		if(!foundOne) return -1;
+		blocktogo.setCoordinates(dest);
+
 		// 
+		return 0;
 	}
 	
+	private void seekAndDecreaseArrivalPoint(Coordinates coord){
+		if(arrivalArray.isEmpty()) return;
+		for(ArrivalPoint ar : arrivalArray){
+			if(ar.getCoordinates().equals(coord)){
+				ar.decrease();
+				System.out.println("Arrival Point " + ar.getCoordinates() + " has been decreased");
+				//	Si le point d'arrivée est nul retirer le point d'arrivée de la liste
+				if(ar.isFull()){
+					if(arrivalArray.remove(ar) == false){
+						System.out.println("Cannot retrieve ArrivalPoint");
+						System.exit(0);
+					}
+				}
+				break;						
+			}
+		}
+	}
+	
+	private void moveLapMouse(LapMouse l, Coordinates exit){
+		
+		int res = move(mapNodes[l.XY.x][l.XY.y],mapNodes[exit.x][exit.y]);
+		
+		// si le déplacement réussit
+		if(res >=0){
+			// Incrémenter le nombre de déplacements
+			nbMove++;
+			// Mettre à jour les coordonnées de la souris
+			l.setCoordinates(exit);
+		}
+		
+		switch(res)
+		{
+			case 1: 					
+				// si c'est un point d'arrivée incrémenter le nombre de souris arrivées
+				arrivedMouses++;
+				//	Décrémenter le nombre de souris pouvant accéder à ce point d'arrivée
+				seekAndDecreaseArrivalPoint(exit);
+				// Décrémenter le nombre de souris en déplacement
+				nbActiveMouses--;
+				System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);
+
+				break;
+			case 0:
+				// si la case d'arrivée est de l'herbe
+				if(mapNodes[exit.x][exit.y].is_grass()){
+					// ajouter la souris à ActiveMouses avec tour = 2n
+					l.setLap(2);
+				}
+				else{
+					// sinon ajouter la souris à ActiveMouses avec tour = 1
+					l.setLap(1);
+				}						
+				break;
+			case -1:
+				l.setLap(1);
+			default:
+				break;
+		}
+	}
 	// Affichage des sabelettes aux positions où ils se trouvent
 	private void SearchAndSetNewMouses() {
 		if (departureXY == null) {
 			System.out.println("Tableau de points d'apparition non assigné");
 			System.exit(0);
 		}
-		int x, y;
+		
 		Coordinates coord = new Coordinates(0,0);
+		int x,y;
 		for (int i = 0; i < departureXY.length; i++) {
 			coord.x = x = departureXY[i][0];
 			coord.y = y = departureXY[i][1];
-			TestAndAddStartingMouses(coord,mapNodes[x][y]);
-		}
-		
-		if(!StartingMousesToAdd.isEmpty())
-		{
-			while(!StartingMousesToAdd.isEmpty()) {
-				coord = StartingMousesToAdd.pop();
-				mapNodes[coord.x][coord.y].setAsOccupied();
-//				System.out.println("mapNodes[" + coord.x + "][" + coord.y + "] is now occupied");
-				ActiveMouses.push(new Coordinates(coord.x, coord.y));
-			}
-			if(mouseTest == null)
-				if(!ActiveMouses.isEmpty())
-					mouseTest = new Coordinates(ActiveMouses.peek().x, ActiveMouses.peek().y);
-		}
-				
+			AddStartingMouses(mapNodes[x][y]);
+		}						
 	}
 
 	// Affichage des sabelettes au point d'apparition
-	private void TestAndAddStartingMouses(Coordinates entrycoord, Node<?> entrynode) {
-		if(TestWalkableNode(entrynode.getLeftNode()))
-			addStartingMouse(entrycoord.x, entrycoord.y-1);
-		if(TestWalkableNode(entrynode.getRightNode()))
-			addStartingMouse(entrycoord.x, entrycoord.y+1);
-		if(TestWalkableNode(entrynode.getUpNode()))
-			addStartingMouse(entrycoord.x-1, entrycoord.y);
-		if(TestWalkableNode(entrynode.getDownNode()))
-			addStartingMouse(entrycoord.x+1, entrycoord.y);
-		if(TestWalkableNode(entrynode.getUpRightNode()))
-			addStartingMouse(entrycoord.x-1, entrycoord.y+1);
-		if(TestWalkableNode(entrynode.getDownRightNode()))
-			addStartingMouse(entrycoord.x+1, entrycoord.y+1);
-		if(TestWalkableNode(entrynode.getUpLeftNode()))
-			addStartingMouse(entrycoord.x-1, entrycoord.y-1);
-		if(TestWalkableNode(entrynode.getDownLeftNode()))
-			addStartingMouse(entrycoord.x+1, entrycoord.y-1);
+	private void AddStartingMouses(GenericNode entrynode) {
+		if(MousesToGo <= 0) return;
+        for (IEdge e : entrynode.getEdges()){
+    		TestNodeAndAddStartingMouse(entrynode, (GenericNode) e.getOther(entrynode));
+        }
+	}
+	
+	private void TestNodeAndAddStartingMouse(GenericNode entrynode, GenericNode nodeToGo){
+		if(MousesToGo > 0 && TestWalkableNode(nodeToGo)){
+			// Si le déplacement réussit
+				// Ajouter les souris dans ActiveMouses 
+				// Incrémenter le nombre de souris en déplacement
+				// Décrémenter le nombre de souris pouvant apparaître (MousesToGo)
+			if(move(entrynode,nodeToGo) == 0){
+				addActiveMouses(nodeToGo);
+				nbActiveMouses++;
+				System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);
+
+				MousesToGo--;
+			}
+		}
+	}
+	
+	private void addActiveMouses(GenericNode nodeToGo){
+		LapMouse lm = new LapMouse(nodeToGo.getCoordinates());
+		if(nodeToGo.is_grass())
+			lm.setLap(2); // 2 tours
+		else
+			lm.setLap(1); // 1 tour
+		ActiveMouses.push(lm);
 	}
 	
 	// Vérifie l'existence du noeud et paramètre sa texture se lo
-	private boolean TestWalkableNode(Node<?> node) {
+	private boolean TestWalkableNode(GenericNode node) {
 		if (node != null) {
 			if (node.is_Walkable())
 				return true;
@@ -734,19 +1121,10 @@ public class Partie {
 		return false;
 	}
 	
-	private void addStartingMouse(int x_, int y_)
-	{
-		if(StartingMousesToAdd != null)
-			StartingMousesToAdd.push(new Coordinates(x_,y_));
-		else
-		{
-			System.out.println("StartingMousesToAdd has not been initialized");
-			System.exit(0);
-		}
-	}
-
+	
 	// Affichage d'un quadrilatère de couleur unie aux coordonées indiquées
-	private void displayQuad(int x, int y, int width) {
+	private void displayQuad(int x, int y, int width)
+	{
 		// set the color of the quad (R,G,B,A)
 		// GL11.glColor3f(0.5f,0.5f,1.0f);
 		GL11.glColor3f(0f, 0f, 0f);
@@ -764,10 +1142,74 @@ public class Partie {
 		GL11.glEnd();
 	}
 
-	public static void main(String[] argv) {
+	public static void main(String[] argv)
+	{
 		Partie partie = new Partie();
 		partie.start();
 	}
 
+	public Texture getFromLeftMouseTexture() {
+		return fromLeftMouseTexture;
+	}
 
+	public void setFromLeftMouseTexture(String filename) {
+		this.fromLeftMouseTexture = getTexture("PNG", filename);
+
+	}
+
+	public Texture getFromRightMouseTexture() {
+		return fromRightMouseTexture;
+	}
+
+	public void setFromRightMouseTexture(String filename) {
+		this.fromRightMouseTexture = getTexture("PNG", filename);
+	}
+
+	public Texture getFromUpMouseTexture() {
+		return fromUpMouseTexture;
+	}
+
+	public void setFromUpMouseTexture(String filename) {
+		this.fromUpMouseTexture = getTexture("PNG", filename);
+	}
+
+	public Texture getFromDownMouseTexture() {
+		return fromDownMouseTexture;
+	}
+
+	public void setFromDownMouseTexture(String filename) {
+		this.fromDownMouseTexture = getTexture("PNG", filename);
+	}
+
+	public Texture getFromUpLeftMouseTexture() {
+		return fromUpLeftMouseTexture;
+	}
+
+	public void setFromUpLeftMouseTexture(String filename) {
+		this.fromUpLeftMouseTexture = getTexture("PNG", filename);
+	}
+
+	public Texture getFromUpRightMouseTexture() {
+		return fromUpRightMouseTexture;
+	}
+
+	public void setFromUpRightMouseTexture(String filename) {
+		this.fromUpRightMouseTexture = getTexture("PNG", filename);
+	}
+
+	public Texture getFromDownLeftMouseTexture() {
+		return fromDownLeftMouseTexture;
+	}
+
+	public void setFromDownLeftMouseTexture(String filename) {
+		this.fromDownLeftMouseTexture = getTexture("PNG", filename);
+	}
+
+	public Texture getFromDownRightMouseTexture() {
+		return fromDownRightMouseTexture;
+	}
+
+	public void setFromDownRightMouseTexture(String filename) {
+		this.fromDownRightMouseTexture = getTexture("PNG", filename);
+	}
 }
