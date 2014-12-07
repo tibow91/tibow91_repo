@@ -1,5 +1,6 @@
 package projet_Java;
 
+import java.awt.Font;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -13,6 +14,7 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
 import org.newdawn.slick.Color;
+import org.newdawn.slick.TrueTypeFont;
 import org.newdawn.slick.opengl.Texture;
 import org.newdawn.slick.opengl.TextureLoader;
 import org.newdawn.slick.util.ResourceLoader;
@@ -39,7 +41,7 @@ public class Partie
 	private ArrayList<ArrivalPoint> arrivalArray = new ArrayList<ArrivalPoint>();
 	private FifoStack<Integer> doorMoves = new FifoStack<Integer>();
 
-	private boolean startGame=true; // Indique si la partie est lancée
+	private boolean startGame=false; // Indique si la partie est lancée
 	private long lapTime = 350;
 	long startTime = System.currentTimeMillis();
 	private int nbActiveMouses = 0; // Nombre de souris en déplacement
@@ -49,7 +51,7 @@ public class Partie
 	private int MousesToGo = 0;
 	
 	/** Textures par défault **/
-	private Texture defaultTexture = null; // Texture par défault de chaque parcelle de terrain
+	static private Texture defaultTexture = null; // Texture par défault de chaque parcelle de terrain
 	private Texture mouseTexture = null; // Texture d'une souris par défault	
 	/* Textures de souris selon le mouvement qu'elles effectuent */
 	private Texture fromLeftMouseTexture = null;
@@ -61,9 +63,18 @@ public class Partie
 	private Texture fromDownLeftMouseTexture = null;
 	private Texture fromDownRightMouseTexture = null;
 
+	private TrueTypeFont font;
+	private Button lButton = new Button();
+	private Button sButton = new Button();
+	private Button decLapTime = new Button();
+	private Button incLapTime = new Button();
+	
+	static public int RESWIDTH = 600;
+	static public int RESHEIGHT = 1366;
+	
 	public void start() // Lance la partie
 	{
-		initGL(1366, 600, "Java Project ESGI"); // Initialise openGL
+		initGL(RESHEIGHT, RESWIDTH, "Java Project ESGI"); // Initialise openGL
 		init("map.txt"); // Initialise la map
 
 		while (true)
@@ -145,8 +156,27 @@ public class Partie
 		setFromDownRightMouseTexture("map/m_leftTop.png");
 		setFromUpRightMouseTexture("map/m_leftBottom.png");
 		setFromUpLeftMouseTexture("map/m_rightBottom.png");
+		
+		Font awtFont = new Font("Times New Roman", Font.BOLD, 24);
+		font = new TrueTypeFont(awtFont, true);
+		
+		int x = longueur * getDefaultTexture().getImageWidth();
+		int y = nblignes * getDefaultTexture().getImageHeight();
+		lButton.set(x/2, y+60, getDefaultTexture().getImageHeight(), 100);
+		lButton.setText("LANCER");
+		lButton.setBackGround(true);
+		
+		sButton.set(x/2, y+60, getDefaultTexture().getImageHeight(), 100);
+		sButton.setText("STOP");
+		sButton.setBackGround(true);
+		
+		decLapTime.set(474,y+26, getDefaultTexture().getImageHeight(), 26);
+		decLapTime.setText("-");
+		
+		incLapTime.set(750,y+26, getDefaultTexture().getImageHeight(), 26);
+		incLapTime.setText("+");
 	}
-
+	
 	/****************************************************************/
 	/************* GESTION DE LECTURE D'UN FICHIER ******************/
 	// Vérifie la viabilité du fichier et compte le nombre de lignes
@@ -591,8 +621,17 @@ public class Partie
 		{
 			int x = Mouse.getX();
 			int y = Mouse.getY();
-
-			System.out.println("MOUSE DOWN @ X: " + x + " Y: " + y);
+			Coordinates coord = new Coordinates(x, y);
+//			System.out.println("MOUSE DOWN @ X: " + x + " Y: " + y);
+			if( !startGame && lButton.isClicked(coord))
+				startGame = true;
+			else if(sButton.isClicked(coord))
+				startGame = false;
+			if(decLapTime.isClicked(coord))
+				lapTime --;
+			if(incLapTime.isClicked(coord))
+				lapTime ++;			
+			
 		}
 
 		if (Keyboard.isKeyDown(Keyboard.KEY_SPACE))
@@ -711,6 +750,7 @@ public class Partie
 		return move(node,node.getDownLeftNode());
 	}
 	
+
 	private void cleanRoutesAndResetDistance(){
 		for(int i=0; i< nblignes; i++){
 			for(int j=0; j< longueur; j++){
@@ -719,7 +759,7 @@ public class Partie
 			}
 		}
 	}
-	
+
 	/****************************************************************/
 	/****************** AFFICHAGE GRAPHIQUE *************************/
 	// Mise à jour graphique de la carte
@@ -770,19 +810,49 @@ public class Partie
 				xSpace = 0;
 			}
 			
+			
+	
+//			displayQuad(xSpace, ySpace, getDefaultTexture().getImageWidth(),1);
+
+			
 			for (int i = 0; i < 1; i++)
 			{
 				for (int j = 0; j < longueur; j++)
 				{
 					// displayTextureQuad(getDefaultTexture(),xSpace, ySpace);
-					displayQuad(xSpace, ySpace, getDefaultTexture().getImageWidth());
+					displayQuad(xSpace, ySpace, getDefaultTexture().getImageWidth(),0);
 					xSpace += getDefaultTexture().getImageWidth();
 				}
 				// Incrémentation des ordonnées à la fin de chaque ligne
-				ySpace += getDefaultTexture().getImageHeight();
+//				ySpace += getDefaultTexture().getImageHeight();
 				// Réinitialisation des abscisses à la fin de chaque ligne
 				xSpace = 0;
 			}
+			
+			int x = longueur * getDefaultTexture().getImageWidth();
+			int y = nblignes * getDefaultTexture().getImageHeight();
+			if(!startGame){
+				lButton.draw();
+				decLapTime.draw();
+				incLapTime.draw();
+			}
+			else{
+				sButton.draw();
+			}
+			
+//			font.drawString(0, ySpace, "THE LIGHTWEIGHT JAVA GAMES LIBRARY", Color.yellow);
+			font.drawString(0, ySpace, "Nombre de déplacements = " + nbMove, Color.yellow);
+			font.drawString(500, ySpace, "Nombre de Souris en déplacement = " + nbActiveMouses, Color.yellow);
+
+			ySpace += 26;
+			font.drawString(0, ySpace, "Nombre de Tours = " + nbLap, Color.yellow);
+			font.drawString(500, ySpace, "Temps d'un tour = " + lapTime, Color.yellow);
+			ySpace += 26;
+			font.drawString(0, ySpace, "Nombre de Souris arrivées = " + arrivedMouses, Color.yellow);
+			ySpace += 26;
+			font.drawString(0, ySpace, "Nombre de Souris devant arriver = " + MousesToGo, Color.yellow);
+			ySpace += 26;
+			
 
 		} catch (Exception e)
 		{
@@ -830,7 +900,7 @@ public class Partie
 		return mouseTexture;
 	}
 	// Obtention de la texture par défaut
-	private Texture getDefaultTexture()
+	static public Texture getDefaultTexture()
 	{
 		if (defaultTexture == null)
 		{
@@ -1100,12 +1170,15 @@ public class Partie
 	
 	
 	// Affichage d'un quadrilatère de couleur unie aux coordonées indiquées
-	private void displayQuad(int x, int y, int width)
+	private void displayQuad(int x, int y, int width, int color)
 	{
 		// set the color of the quad (R,G,B,A)
-		// GL11.glColor3f(0.5f,0.5f,1.0f);
-		GL11.glColor3f(0f, 0f, 0f);
-
+//		 GL11.glColor3f(0.5f,0.5f,1.0f);
+		if(color == 0)
+			GL11.glColor3f(0f, 0f, 0f);
+		else
+			GL11.glColor3f(0.95f, 0.8f,0.8f);
+		
 		// draw quad
 		GL11.glBegin(GL11.GL_QUADS);
 		GL11.glTexCoord2f(0, 0);
@@ -1116,6 +1189,30 @@ public class Partie
 		GL11.glVertex2f(x + width, y + width);
 		GL11.glTexCoord2f(0, 1);
 		GL11.glVertex2f(x, y + width);
+		GL11.glEnd();
+	}
+	
+	static public void displayQuad(int x, int y, int height, int width, int color)
+	{
+		// set the color of the quad (R,G,B,A)
+//		 GL11.glColor3f(0.5f,0.5f,1.0f);
+		if(color == 0)
+			GL11.glColor3f(0f, 0f, 0f);
+		else if(color == 1)
+			GL11.glColor3f(0.95f, 0.8f,0.8f);
+		else
+			GL11.glColor3f(1f, 1f,0f);
+		
+		// draw quad
+		GL11.glBegin(GL11.GL_QUADS);
+		GL11.glTexCoord2f(0, 0);
+		GL11.glVertex2f(x, y);
+		GL11.glTexCoord2f(1, 0);
+		GL11.glVertex2f(x + width, y);
+		GL11.glTexCoord2f(1, 1);
+		GL11.glVertex2f(x + width, y + height);
+		GL11.glTexCoord2f(0, 1);
+		GL11.glVertex2f(x, y + height);
 		GL11.glEnd();
 	}
 	
