@@ -66,18 +66,21 @@ public class Partie
 	private TrueTypeFont font;
 	private Button lButton = new Button();
 	private Button sButton = new Button();
+	private Button qButton = new Button();
 	private Button decLapTime = new Button();
 	private Button incLapTime = new Button();
 	
 	static public int RESWIDTH = 600;
 	static public int RESHEIGHT = 1366;
 	
+	private boolean QUIT = false;
+	
 	public void start() // Lance la partie
 	{
 		initGL(RESHEIGHT, RESWIDTH, "Java Project ESGI"); // Initialise openGL
 		init("map.txt"); // Initialise la map
 
-		while (true)
+		while (!QUIT)
 		{
 			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT); // (Ré)Initialisation du
 													// buffer graphique
@@ -170,11 +173,17 @@ public class Partie
 		sButton.setText("STOP");
 		sButton.setBackGround(true);
 		
+		qButton.set(x/2 + 200,y+60, getDefaultTexture().getImageHeight(), 26);
+		qButton.setText("QUIT");
+//		qButton.setBackGround(true);
+		
 		decLapTime.set(474,y+26, getDefaultTexture().getImageHeight(), 26);
 		decLapTime.setText("-");
 		
 		incLapTime.set(750,y+26, getDefaultTexture().getImageHeight(), 26);
 		incLapTime.setText("+");
+		
+
 	}
 	
 	/****************************************************************/
@@ -623,14 +632,21 @@ public class Partie
 			int y = Mouse.getY();
 			Coordinates coord = new Coordinates(x, y);
 //			System.out.println("MOUSE DOWN @ X: " + x + " Y: " + y);
-			if( !startGame && lButton.isClicked(coord))
-				startGame = true;
-			else if(sButton.isClicked(coord))
-				startGame = false;
-			if(decLapTime.isClicked(coord))
-				lapTime --;
-			if(incLapTime.isClicked(coord))
-				lapTime ++;			
+			if( !startGame){
+				if(lButton.isClicked(coord))
+					startGame = true;
+				if(decLapTime.isClicked(coord))
+					lapTime --;
+				if(incLapTime.isClicked(coord))
+					lapTime ++;			
+				if(qButton.isClicked(coord))
+					QUIT = true;
+			}
+			else{
+				if(sButton.isClicked(coord))
+					startGame = false;
+			}
+
 			
 		}
 
@@ -829,12 +845,11 @@ public class Partie
 				xSpace = 0;
 			}
 			
-			int x = longueur * getDefaultTexture().getImageWidth();
-			int y = nblignes * getDefaultTexture().getImageHeight();
 			if(!startGame){
 				lButton.draw();
 				decLapTime.draw();
 				incLapTime.draw();
+				qButton.draw();
 			}
 			else{
 				sButton.draw();
