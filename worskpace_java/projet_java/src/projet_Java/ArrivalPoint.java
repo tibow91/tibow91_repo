@@ -11,6 +11,10 @@ public class ArrivalPoint {
 		nbMovesToGo = moves;
 	}
 	
+	public void setMoves(int newNbMoves){
+		nbMovesToGo = newNbMoves;
+	}
+	
 	public void decrease(){
 		nbMovesToGo--;
 	}

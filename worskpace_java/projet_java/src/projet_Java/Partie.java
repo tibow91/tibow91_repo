@@ -39,9 +39,10 @@ public class Partie
 	private int departureXY[][] = null; // Point(s) d'apparition
 	private static FifoStack<LapMouse> ActiveMouses = new FifoStack<LapMouse>(); 
 	private ArrayList<ArrivalPoint> arrivalArray = new ArrayList<ArrivalPoint>();
-	private FifoStack<Integer> doorMoves = new FifoStack<Integer>();
+	private ArrayList<Integer> doorMovesArray = new ArrayList<Integer>();
 
 	private boolean startGame=false; // Indique si la partie est lancée
+	private boolean PartieLancee=false; // Indique si la partie est lancée
 	private long lapTime = 350;
 	long startTime = System.currentTimeMillis();
 	private int nbActiveMouses = 0; // Nombre de souris en déplacement
@@ -69,11 +70,17 @@ public class Partie
 	private Button qButton = new Button();
 	private Button decLapTime = new Button();
 	private Button incLapTime = new Button();
+	private Button decDoorMoves = new Button();
+	private Button incDoorMoves = new Button();
+	private Button okButton = new Button();
 	
 	static public int RESWIDTH = 600;
 	static public int RESHEIGHT = 1366;
 	
 	private boolean QUIT = false;
+	
+	private int choixParDefault = 20;
+	private int choix = choixParDefault;
 	
 	public void start() // Lance la partie
 	{
@@ -85,6 +92,8 @@ public class Partie
 			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT); // (Ré)Initialisation du
 													// buffer graphique
 			pollInput();
+			if(startGame)
+				PartieLancee = true;
 			render(); // Mise à jour des textures
 			UpdateMouses(); // Mise à jour des souris
 			Display.update(); // Mise à jour des graphismes
@@ -173,7 +182,7 @@ public class Partie
 		sButton.setText("STOP");
 		sButton.setBackGround(true);
 		
-		qButton.set(x/2 + 200,y+60, getDefaultTexture().getImageHeight(), 26);
+		qButton.set(x/2 + 200,y+60, getDefaultTexture().getImageHeight(), 26*4);
 		qButton.setText("QUIT");
 //		qButton.setBackGround(true);
 		
@@ -182,6 +191,15 @@ public class Partie
 		
 		incLapTime.set(750,y+26, getDefaultTexture().getImageHeight(), 26);
 		incLapTime.setText("+");
+		
+		decDoorMoves.set(925,y+26, getDefaultTexture().getImageHeight(), 26);
+		decDoorMoves.setText("-");
+		
+		incDoorMoves.set(1250,y+26, getDefaultTexture().getImageHeight(), 26);
+		incDoorMoves.setText("+");
+		
+		okButton.set(1300,y+26, getDefaultTexture().getImageHeight(), 2*26);
+		okButton.setText("ok");
 		
 
 	}
@@ -599,20 +617,23 @@ public class Partie
 				if (mapNodes[i][j].is_arrival())
 				{
 					ArrivalPoint ar = new ArrivalPoint(new Coordinates(i,j));
-					if(!doorMoves.isEmpty()){
-						ar.nbMovesToGo = doorMoves.pop();
-					}
+					ar.setMoves(choixParDefault);
 					nb++;
 					arrivalArray.add(ar);
 				}
 			}
 		}
-		for(int i=0; i<nb; i++){
-			MousesToGo += arrivalArray.get(i).nbMovesToGo;
-		}
+		calculateMovesToGo();
 		if(nb == 0){
 			System.out.println("there is not Arrival Points available !!!");
 			System.exit(0);
+		}
+	}
+	
+	private void calculateMovesToGo(){
+		MousesToGo = 0;
+		for(int i=0; i<arrivalArray.size(); i++){
+			MousesToGo += arrivalArray.get(i).nbMovesToGo;
 		}
 	}
 	
@@ -646,7 +667,22 @@ public class Partie
 				if(sButton.isClicked(coord))
 					startGame = false;
 			}
-
+			
+			if(!startGame && nbActiveMouses==0 && doorMovesArray.size()< arrivalArray.size()){
+				if(decDoorMoves.isClicked(coord)){
+					choix--;
+				}
+				if(incDoorMoves.isClicked(coord)){
+					choix++;
+				}
+				
+				if(okButton.isClicked(coord)){
+					doorMovesArray.add(choix);
+					int index = doorMovesArray.size()-1;
+					arrivalArray.get(index).setMoves(choix);
+					calculateMovesToGo();
+				}
+			}
 			
 		}
 
@@ -858,6 +894,22 @@ public class Partie
 //			font.drawString(0, ySpace, "THE LIGHTWEIGHT JAVA GAMES LIBRARY", Color.yellow);
 			font.drawString(0, ySpace, "Nombre de déplacements = " + nbMove, Color.yellow);
 			font.drawString(500, ySpace, "Nombre de Souris en déplacement = " + nbActiveMouses, Color.yellow);
+			int n=doorMovesArray.size();
+			for(int k=0;k<arrivalArray.size();k++){
+				if(!startGame && nbActiveMouses==0 && k==n && n<arrivalArray.size()) {
+					decDoorMoves.draw(new Coordinates(925,ySpace+26*k));
+					incDoorMoves.draw(new Coordinates(1250,ySpace+26*k));
+					okButton.draw(new Coordinates(1275,ySpace+26*k));
+				}
+				if(!PartieLancee && k >= doorMovesArray.size())
+					font.drawString(950, ySpace+26*k, "Nombre de souris sur P" + (k+1) + "= " + choix, Color.yellow);
+				else if((k+1) <= doorMovesArray.size() )
+					font.drawString(950, ySpace+26*k, "Nombre de souris sur P" + (k+1) + "= " + doorMovesArray.get(k), Color.yellow);
+				else
+					font.drawString(950, ySpace+26*k, "Nombre de souris sur P" + (k+1) + "= " + choixParDefault, Color.yellow);
+
+			}			
+				
 
 			ySpace += 26;
 			font.drawString(0, ySpace, "Nombre de Tours = " + nbLap, Color.yellow);
@@ -958,7 +1010,7 @@ public class Partie
 				System.out.println("Nombre de deplacements = " + nbMove);
 				System.out.println("Nombre de tours = " + nbLap);
 				System.out.println("Nombre de souris arrivées = " + arrivedMouses);
-				System.out.println("Nombre de souris devant arriver = " + MousesToGo);
+				System.out.println("Nombre de souris devant sortir = " + MousesToGo);
 				System.out.println("Nombre de souris en déplacement = " + nbActiveMouses);	
 				startGame = false;
 			}			

@@ -11,12 +11,16 @@ public class Button {
 	public String text ="";
 	private Font awtFont;
 	private boolean background = false;
+	private int width=0;
+	private int height = 0;
 	
 	public void set(int x, int y, int height, int width){
 		XY[0] = new Coordinates(x, y);
 		XY[1] = new Coordinates(x+width, y);
 		XY[2] = new Coordinates(x, y+height);
 		XY[3] = new Coordinates(x+width, y+height);	
+		this.width = width;
+		this.height = height;
 	}
 	public Button(){
 		set(0,0,0,0);
@@ -33,6 +37,16 @@ public class Button {
 	}
 	
 	public void draw(){
+		if(background)
+			Partie.displayQuad(XY[0].x,XY[0].y, Partie.getDefaultTexture().getImageHeight(), 100,2);
+		font.drawString(XY[0].x, XY[0].y, text, Color.red);
+	}
+	
+	public void draw(Coordinates coord){
+		XY[0] = new Coordinates(coord.x, coord.y);
+		XY[1] = new Coordinates(coord.x+width, coord.y);
+		XY[2] = new Coordinates(coord.x, coord.y+height);
+		XY[3] = new Coordinates(coord.x+width,coord.y+height);	
 		if(background)
 			Partie.displayQuad(XY[0].x,XY[0].y, Partie.getDefaultTexture().getImageHeight(), 100,2);
 		font.drawString(XY[0].x, XY[0].y, text, Color.red);
